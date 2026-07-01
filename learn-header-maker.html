@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEARN Doc Header Maker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1420;
+      --surface:   #1a2030;
+      --surface2:  #131825;
+      --border:    #252e42;
+      --border2:   #2d3a52;
+      --text:      #e4e8f0;
+      --text-muted:#6b7a94;
+      --text-dim:  #a0aabb;
+      --accent:    #4ea8de;
+      --red:       #D50032;
+      --radius:    8px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-dim);
+      font-family: 'Inter', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 24px 20px 40px;
+    }
+
+    /* ── Header ── */
+    .app-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .app-header-bar {
+      width: 3px; height: 22px;
+      background: var(--red);
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .app-header h1 {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    .app-header .attribution {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-left: 2px;
+    }
+    .app-header .size-badge {
+      margin-left: auto;
+      font-size: 10px;
+      color: var(--text-muted);
+      background: var(--surface);
+      padding: 3px 9px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+    }
+
+    /* ── Preview ── */
+    .preview-wrap {
+      background: #0a0f1a;
+      border-radius: var(--radius);
+      padding: 10px;
+      margin-bottom: 14px;
+      border: 1px solid var(--border);
+    }
+    #bm-canvas {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 4px;
+    }
+    #font-status {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    /* ── Grid ── */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    @media (max-width: 600px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    /* ── Panel ── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+    }
+    .section-label {
+      display: block;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    /* ── Upload ── */
+    .upload-label {
+      display: block;
+      text-align: center;
+      padding: 10px 12px;
+      border: 1px dashed var(--border2);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--surface2);
+      margin-bottom: 14px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      transition: border-color 0.2s, color 0.2s;
+    }
+    .upload-label:hover { border-color: var(--accent); color: var(--text); }
+    .upload-label.loaded { color: #61BF1A; border-color: #61BF1A55; }
+
+    /* ── Sliders ── */
+    .slider-row { margin-bottom: 14px; }
+    .slider-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .slider-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .slider-val {
+      font-size: 11px;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      min-width: 36px;
+      text-align: right;
+    }
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      accent-color: var(--accent);
+      cursor: pointer;
+      background: var(--border2);
+      border-radius: 2px;
+      appearance: none;
+      -webkit-appearance: none;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 14px; height: 14px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: none;
+      cursor: pointer;
+    }
+
+    /* ── Textarea ── */
+    textarea {
+      width: 100%;
+      padding: 9px 11px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: 'Inter', system-ui, sans-serif;
+      resize: vertical;
+      line-height: 1.5;
+      margin-bottom: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    textarea:focus { border-color: var(--accent); }
+
+    /* ── Swatches ── */
+    .swatches {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+    .swatch {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      cursor: pointer;
+      flex-shrink: 0;
+      border: 2px solid transparent;
+      transition: transform 0.12s, box-shadow 0.12s;
+    }
+    .swatch:hover { transform: scale(1.1); }
+    .swatch.sel {
+      border: 2.5px solid #fff;
+      box-shadow: 0 0 0 2.5px var(--accent), 0 2px 8px rgba(0,0,0,0.35);
+      transform: scale(1.18);
+    }
+    .swatch-orig {
+      background: var(--surface2);
+      border: 1.5px solid var(--border2) !important;
+      font-size: 11px;
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .swatch-orig.sel {
+      border: 2.5px solid #fff !important;
+      box-shadow: 0 0 0 2.5px var(--accent), 0 2px 8px rgba(0,0,0,0.35);
+      transform: scale(1.18);
+    }
+    .colour-hint {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-bottom: 9px;
+      min-height: 16px;
+    }
+    .recolour-note {
+      font-size: 10px;
+      color: var(--text-muted);
+      line-height: 1.55;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+    .sub-divider { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+
+    /* ── Background buttons ── */
+    .bg-row {
+      display: flex;
+      gap: 8px;
+    }
+    .bg-btn {
+      flex: 1;
+      padding: 10px 4px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 10px;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-weight: 500;
+      border: 2px solid transparent;
+      transition: border-color 0.15s;
+      color: #333;
+    }
+    .bg-btn:hover { border-color: #aaa; }
+    .bg-btn.sel { border-color: var(--accent); }
+
+    /* ── Download button ── */
+    .btn-download {
+      display: block;
+      width: 100%;
+      padding: 13px;
+      background: var(--red);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: 'Inter', system-ui, sans-serif;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: opacity 0.15s;
+    }
+    .btn-download:hover { opacity: 0.9; }
+    .btn-download:active { opacity: 0.8; }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="app-header-bar"></div>
+    <h1>LEARN Doc Header Maker</h1>
+    <span class="attribution">made with Claude</span>
+    <span class="size-badge">1920 &times; 320 px</span>
+  </header>
+
+  <div class="preview-wrap">
+    <canvas id="bm-canvas"></canvas>
+    <div id="font-status">Loading font&hellip;</div>
+  </div>
+
+  <div class="grid-2">
+
+    <!-- Image panel -->
+    <div class="panel">
+      <span class="section-label">Image</span>
+      <label class="upload-label" id="upload-label">
+        <span id="upload-text">&#8593; Click to upload image</span>
+        <input type="file" accept="image/*,.svg" id="bm-file" style="display:none">
+      </label>
+      <div class="slider-row">
+        <div class="slider-top">
+          <span class="slider-label">Horizontal position</span>
+          <span class="slider-val" id="ix-val">15%</span>
+        </div>
+        <input type="range" min="-10" max="50" step="0.5" value="15" id="bm-ix">
+      </div>
+      <div class="slider-row">
+        <div class="slider-top">
+          <span class="slider-label">Size</span>
+          <span class="slider-val" id="ih-val">85%</span>
+        </div>
+        <input type="range" min="20" max="120" step="1" value="85" id="bm-ih">
+      </div>
+      <div class="sub-divider">
+        <span class="section-label">Recolour image</span>
+        <div class="colour-hint" id="img-colour-name">Original colours</div>
+        <div class="swatches" id="img-colours"></div>
+        <p class="recolour-note">Recolouring works best with SVG files or PNG images that have a transparent background (e.g. flat icons or silhouettes). It will not work as expected on photos or images with a white background.</p>
+      </div>
+    </div>
+
+    <!-- Text panel -->
+    <div class="panel">
+      <span class="section-label">Text</span>
+      <textarea id="bm-text" rows="2" placeholder="Heading text&hellip;">What is Health?</textarea>
+      <div class="slider-row">
+        <div class="slider-top">
+          <span class="slider-label">Font size</span>
+          <span class="slider-val" id="fs-val">80px</span>
+        </div>
+        <input type="range" min="24" max="160" step="2" value="80" id="bm-fs">
+      </div>
+      <div class="slider-row">
+        <div class="slider-top">
+          <span class="slider-label">Horizontal position</span>
+          <span class="slider-val" id="tx-val">67%</span>
+        </div>
+        <input type="range" min="0" max="90" step="0.5" value="67" id="bm-tx">
+      </div>
+      <div class="slider-row">
+        <div class="slider-top">
+          <span class="slider-label">Vertical position</span>
+          <span class="slider-val" id="ty-val">50%</span>
+        </div>
+        <input type="range" min="10" max="90" step="0.5" value="50" id="bm-ty">
+      </div>
+      <div class="sub-divider">
+        <span class="section-label">Text colour</span>
+        <div class="colour-hint" id="text-colour-name">University Blue</div>
+        <div class="swatches" id="text-colours"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Background -->
+  <div class="panel" style="margin-bottom:12px;">
+    <span class="section-label">Background</span>
+    <div class="bg-row" id="bg-row"></div>
+  </div>
+
+  <button class="btn-download" id="btn-download">
+    &#8595; Download header &mdash; PNG (1920 &times; 320)
+  </button>
+
+  <script>
+    const CW = 1920, CH = 320;
+
+    const BRAND = [
+      {name:"University Red",   hex:"#D50032"},
+      {name:"University Blue",  hex:"#041E42"},
+      {name:"Bright Blue",      hex:"#007288"},
+      {name:"Bright Pink",      hex:"#D0006F"},
+      {name:"Purple",           hex:"#830065"},
+      {name:"Burgundy",         hex:"#A50034"},
+      {name:"Dark Green",       hex:"#154734"},
+      {name:"Jade",             hex:"#487A7B"},
+      {name:"Muted Blue",       hex:"#004F71"},
+      {name:"Muted Brown",      hex:"#6D4F47"},
+      {name:"Spruce Grey",      hex:"#333F48"},
+      {name:"Bright Orange",    hex:"#C25E03"},
+      {name:"Bright Yellow",    hex:"#F9A800"},
+      {name:"Bright Green",     hex:"#61BF1A"},
+      {name:"Bright Red",       hex:"#AD033B"},
+      {name:"Blue",             hex:"#0099AB"},
+      {name:"Muted Turquoise",  hex:"#46877F"},
+      {name:"Brown",            hex:"#692E1F"},
+      {name:"Light Blue",       hex:"#C6DBE9"},
+      {name:"Muted Pink",       hex:"#BA8285"},
+      {name:"Muted Yellow",     hex:"#949108"},
+    ];
+
+    const BGS = [
+      {name:"Cream",      hex:"#F0ECD8"},
+      {name:"White",      hex:"#FFFFFF"},
+      {name:"Warm Grey",  hex:"#E5E1DA"},
+      {name:"Pale Slate", hex:"#DDE5EA"},
+    ];
+
+    const state = {
+      imgObj: null, imgXpct: 15, imgHpct: 85, imgColour: null,
+      text: "What is Health?", fontSize: 80,
+      textXpct: 67, textYpct: 50,
+      bgColour: "#F0ECD8", textColour: "#041E42",
+      fontReady: false,
+    };
+
+    const canvas = document.getElementById("bm-canvas");
+
+    /* ── Text wrapping ── */
+    function drawWrappedText(cx, text, x, y, maxW, lh) {
+      const paras = text.split("\n");
+      const lines = [];
+      for (const p of paras) {
+        if (!p.trim()) { lines.push(""); continue; }
+        const words = p.split(" ");
+        let line = "";
+        for (let i = 0; i < words.length; i++) {
+          const test = line + words[i] + " ";
+          if (cx.measureText(test).width > maxW && i > 0) {
+            lines.push(line.trim()); line = words[i] + " ";
+          } else { line = test; }
+        }
+        lines.push(line.trim());
+      }
+      const sy = y - ((lines.length - 1) * lh) / 2;
+      lines.forEach((l, i) => cx.fillText(l, x, sy + i * lh));
+    }
+
+    /* ── Image recolouring ── */
+    function drawImageRecoloured(cx, img, ix, iy, iw, ih, colour) {
+      if (!colour) { cx.drawImage(img, ix, iy, iw, ih); return; }
+      const off = document.createElement("canvas");
+      off.width = Math.round(iw); off.height = Math.round(ih);
+      const octx = off.getContext("2d");
+      octx.drawImage(img, 0, 0, off.width, off.height);
+      octx.globalCompositeOperation = "source-in";
+      octx.fillStyle = colour;
+      octx.fillRect(0, 0, off.width, off.height);
+      cx.drawImage(off, ix, iy);
+    }
+
+    /* ── Draw ── */
+    function drawToCanvas(c, scale) {
+      const w = Math.round(CW * scale), h = Math.round(CH * scale);
+      c.width = w; c.height = h;
+      const cx = c.getContext("2d");
+
+      cx.fillStyle = state.bgColour;
+      cx.fillRect(0, 0, w, h);
+
+      if (state.imgObj) {
+        const ih = (state.imgHpct / 100) * h;
+        const iw = state.imgObj.width * (ih / state.imgObj.height);
+        const ix = (state.imgXpct / 100) * w;
+        const iy = (h - ih) / 2;
+        drawImageRecoloured(cx, state.imgObj, ix, iy, iw, ih, state.imgColour);
+      }
+
+      const fs = state.fontSize * scale;
+      cx.font = `600 ${fs}px 'Crimson Pro', Georgia, serif`;
+      cx.fillStyle = state.textColour;
+      cx.textBaseline = "middle";
+      const tx = (state.textXpct / 100) * w;
+      const ty = (state.textYpct / 100) * h;
+      drawWrappedText(cx, state.text || " ", tx, ty, Math.max(w - tx - 40 * scale, 50), fs * 1.3);
+    }
+
+    function redraw() {
+      if (!state.fontReady) return;
+      const w = canvas.parentElement ? canvas.parentElement.clientWidth : 960;
+      drawToCanvas(canvas, w / CW);
+    }
+
+    /* ── Font loading ── */
+    document.fonts.load("600 80px 'Crimson Pro'").then(() => {
+      state.fontReady = true;
+      document.getElementById("font-status").style.display = "none";
+      redraw();
+    });
+    setTimeout(() => {
+      if (!state.fontReady) {
+        state.fontReady = true;
+        document.getElementById("font-status").style.display = "none";
+        redraw();
+      }
+    }, 3000);
+
+    /* ── File upload ── */
+    document.getElementById("bm-file").addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+          state.imgObj = img;
+          document.getElementById("upload-label").classList.add("loaded");
+          document.getElementById("upload-text").textContent = "\u2713 " + file.name;
+          redraw();
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    /* ── Sliders ── */
+    function bindSlider(id, valId, unit, key) {
+      const el = document.getElementById(id);
+      const vo = document.getElementById(valId);
+      el.addEventListener("input", () => {
+        state[key] = +el.value;
+        vo.textContent = Math.round(+el.value) + unit;
+        redraw();
+      });
+    }
+    bindSlider("bm-ix", "ix-val", "%", "imgXpct");
+    bindSlider("bm-ih", "ih-val", "%", "imgHpct");
+    bindSlider("bm-fs", "fs-val", "px", "fontSize");
+    bindSlider("bm-tx", "tx-val", "%", "textXpct");
+    bindSlider("bm-ty", "ty-val", "%", "textYpct");
+
+    document.getElementById("bm-text").addEventListener("input", e => {
+      state.text = e.target.value; redraw();
+    });
+
+    /* ── Background buttons ── */
+    const bgRow = document.getElementById("bg-row");
+    BGS.forEach(bg => {
+      const btn = document.createElement("button");
+      btn.className = "bg-btn" + (bg.hex === state.bgColour ? " sel" : "");
+      btn.textContent = bg.name;
+      btn.style.background = bg.hex;
+      btn.addEventListener("click", () => {
+        state.bgColour = bg.hex;
+        bgRow.querySelectorAll(".bg-btn").forEach(b => b.classList.remove("sel"));
+        btn.classList.add("sel");
+        redraw();
+      });
+      bgRow.appendChild(btn);
+    });
+
+    /* ── Image colour swatches ── */
+    (function buildImgSwatches() {
+      const row = document.getElementById("img-colours");
+      const hint = document.getElementById("img-colour-name");
+
+      const origBtn = document.createElement("button");
+      origBtn.className = "swatch swatch-orig sel";
+      origBtn.title = "Original colours";
+      origBtn.textContent = "\u2b50";
+      origBtn.style.fontSize = "11px";
+      origBtn.addEventListener("click", () => {
+        row.querySelectorAll(".swatch").forEach(b => b.classList.remove("sel"));
+        origBtn.classList.add("sel");
+        hint.textContent = "Original colours";
+        state.imgColour = null; redraw();
+      });
+      row.appendChild(origBtn);
+
+      BRAND.forEach(c => {
+        const btn = document.createElement("button");
+        btn.className = "swatch";
+        btn.style.background = c.hex;
+        btn.title = c.name;
+        btn.addEventListener("click", () => {
+          row.querySelectorAll(".swatch").forEach(b => b.classList.remove("sel"));
+          btn.classList.add("sel");
+          hint.textContent = c.name;
+          state.imgColour = c.hex; redraw();
+        });
+        row.appendChild(btn);
+      });
+    })();
+
+    /* ── Text colour swatches ── */
+    (function buildTextSwatches() {
+      const row = document.getElementById("text-colours");
+      const hint = document.getElementById("text-colour-name");
+
+      BRAND.forEach(c => {
+        const btn = document.createElement("button");
+        btn.className = "swatch" + (c.hex === state.textColour ? " sel" : "");
+        btn.style.background = c.hex;
+        btn.title = c.name;
+        btn.addEventListener("click", () => {
+          row.querySelectorAll(".swatch").forEach(b => b.classList.remove("sel"));
+          btn.classList.add("sel");
+          hint.textContent = c.name;
+          state.textColour = c.hex; redraw();
+        });
+        row.appendChild(btn);
+      });
+    })();
+
+    /* ── Download ── */
+    document.getElementById("btn-download").addEventListener("click", () => {
+      const off = document.createElement("canvas");
+      drawToCanvas(off, 1);
+      off.toBlob(blob => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "learn-header.png";
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }, "image/png");
+    });
+
+    /* ── Redraw on resize ── */
+    window.addEventListener("resize", redraw);
+  </script>
+</body>
+</html>
