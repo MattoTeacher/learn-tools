@@ -1,0 +1,6 @@
+[
+  {"id":"calendar","title":"Teaching Week","file":"icons/calendar.svg","type":"template","tags":["week","teaching","calendar","module"]},
+  {"id":"reading-week","title":"Reading Week","file":"icons/reading-week.svg","type":"standard","tags":["reading","study","independent","catch-up"]},
+  {"id":"assignment","title":"Assessment","file":"icons/assignment.svg","type":"standard","tags":["assessment","assignment","submission","coursework"]},
+  {"id":"welcome","title":"Welcome / Course Information","file":"icons/welcome.svg","type":"standard","tags":["welcome","course information","introduction","signpost"]}
+]
