@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LEARN Course Banner Creator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --jade: #487A7B;
+  --jade-dark: #386061;
+  --jade-light: #e8f2f2;
+  --bg: #f0f4f8;
+  --panel-bg: #ffffff;
+  --border: #d4dde6;
+  --text: #1e2d3a;
+  --text-muted: #5a6e7f;
+  --text-faint: #8fa3b1;
+  --input-bg: #f7fafc;
+  --divider: #e2eaf0;
+}
+body {
+  font-family: 'Source Sans 3', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem 1rem;
+  gap: 1.25rem;
+}
+h1 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+
+.workspace {
+  display: flex;
+  gap: 1.25rem;
+  width: 100%;
+  max-width: 1200px;
+  align-items: flex-start;
+}
+
+.panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.1rem;
+  width: 270px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.panel h2 {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  padding-bottom: 0.45rem;
+  border-bottom: 1px solid var(--divider);
+}
+.field { display: flex; flex-direction: column; gap: 0.3rem; }
+label { font-size: 0.76rem; color: var(--text-muted); font-weight: 600; }
+
+input[type="text"], textarea, select {
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.83rem;
+  padding: 0.42rem 0.55rem;
+  width: 100%;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input[type="text"]:focus, textarea:focus {
+  border-color: var(--jade);
+  box-shadow: 0 0 0 3px rgba(72,122,123,0.15);
+}
+textarea { resize: vertical; min-height: 52px; line-height: 1.4; }
+
+.slider-row { display: flex; align-items: center; gap: 0.5rem; }
+input[type="range"] { flex: 1; accent-color: var(--jade); cursor: pointer; }
+.slider-val { font-size: 0.76rem; color: var(--text-muted); min-width: 34px; text-align: right; font-weight: 600; }
+
+.shape-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem; }
+.shape-btn {
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  padding: 0.45rem 0.35rem;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+  font-family: inherit;
+}
+.shape-btn:hover { border-color: var(--jade); color: var(--jade-dark); background: var(--jade-light); }
+.shape-btn.active { border-color: var(--jade); color: #fff; background: var(--jade); }
+
+/* Corporate colour swatches */
+.swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+}
+.swatch {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 3px;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.12s, transform 0.1s;
+  position: relative;
+}
+.swatch:hover { transform: scale(1.15); }
+.swatch.active { border-color: #333; }
+.swatch[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e2d3a;
+  color: #fff;
+  font-size: 0.65rem;
+  padding: 3px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.upload-zone {
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  line-height: 1.5;
+  background: var(--input-bg);
+}
+.upload-zone:hover, .upload-zone.drag {
+  border-color: var(--jade);
+  color: var(--jade-dark);
+  background: var(--jade-light);
+}
+.upload-zone input { display: none; }
+
+.export-btn {
+  width: 100%;
+  background: var(--jade);
+  border: none;
+  border-radius: 7px;
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 0.65rem;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  font-family: inherit;
+  box-shadow: 0 2px 6px rgba(72,122,123,0.3);
+}
+.export-btn:hover { background: var(--jade-dark); }
+.export-btn:active { transform: scale(0.98); }
+
+.divider { height: 1px; background: var(--divider); }
+
+.preview-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+.preview-label { font-size: 0.7rem; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; font-weight: 600; }
+.hint { font-size: 0.7rem; color: var(--text-faint); line-height: 1.5; }
+
+/* Crop modal — keep dark for contrast against image */
+#cropModal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.88);
+  z-index: 100;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1.5rem;
+}
+#cropModal.open { display: flex; }
+#cropModal h3 { color: #fff; font-size: 1rem; font-weight: 600; }
+#cropModal p { color: #bbb; font-size: 0.8rem; text-align: center; }
+#cropWrap {
+  position: relative;
+  max-width: 90vw;
+  max-height: 65vh;
+  overflow: hidden;
+  border-radius: 6px;
+  cursor: crosshair;
+  user-select: none;
+}
+#cropSourceImg {
+  display: block;
+  max-width: 90vw;
+  max-height: 65vh;
+  pointer-events: none;
+}
+#cropRect {
+  position: absolute;
+  border: 2px solid #487A7B;
+  background: rgba(72,122,123,0.15);
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.55);
+  pointer-events: none;
+}
+.crop-actions { display: flex; gap: 0.75rem; }
+.crop-btn {
+  padding: 0.5rem 1.4rem;
+  border-radius: 6px;
+  border: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+}
+.crop-confirm { background: var(--jade); color: #fff; }
+.crop-confirm:hover { background: var(--jade-dark); }
+.crop-cancel { background: #444; color: #ddd; }
+.crop-cancel:hover { background: #555; }
+
+#previewCanvas {
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  display: block;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+</style>
+</head>
+<body>
+
+<h1>LEARN Course Banner Creator</h1>
+<p style="font-size:0.72rem;color:var(--text-faint)">Built with <a href="https://claude.ai" target="_blank" style="color:var(--jade);text-decoration:none">Claude</a> by Anthropic</p>
+
+<div class="workspace">
+  <div class="panel">
+
+    <div><h2>Image</h2></div>
+
+    <div class="field">
+      <label>Photo</label>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept="image/*">
+        <span id="uploadLabel">Click to upload or drag & drop</span>
+      </div>
+    </div>
+
+    <div class="field" id="cropBtnWrap" style="display:none">
+      <button class="shape-btn" id="openCropBtn" style="width:100%;padding:0.5rem">✂ Adjust crop</button>
+    </div>
+
+    <div class="field">
+      <label>Saturation <span style="color:#555;font-size:0.7rem">(0 = greyscale)</span></label>
+      <div class="slider-row">
+        <input type="range" id="saturation" min="0" max="200" value="33" step="1">
+        <span class="slider-val" id="satVal">33%</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div><h2>Overlay</h2></div>
+
+    <div class="field">
+      <label>Colour</label>
+      <div class="swatch-grid" id="overlaySwatches"></div>
+    </div>
+    <div class="field">
+      <label>Opacity</label>
+      <div class="slider-row">
+        <input type="range" id="overlayOpacity" min="0" max="100" value="50" step="1">
+        <span class="slider-val" id="opacVal">50%</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <div><h2>Text banner</h2></div>
+
+    <div class="field">
+      <label>Text</label>
+      <textarea id="bannerText">Insert course name here</textarea>
+    </div>
+
+    <div class="field">
+      <label>Banner colour</label>
+      <div class="swatch-grid" id="bannerSwatches"></div>
+    </div>
+
+    <div class="field">
+      <label>Shape</label>
+      <div class="shape-grid">
+        <button class="shape-btn active" data-shape="chevron">▶ Chevron</button>
+        <button class="shape-btn" data-shape="rounded">● Rounded</button>
+        <button class="shape-btn" data-shape="ribbon">◆ Ribbon</button>
+        <button class="shape-btn" data-shape="slash">╱ Slash</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Font size</label>
+      <div class="slider-row">
+        <input type="range" id="fontSize" min="20" max="200" value="100" step="1">
+        <span class="slider-val" id="fontVal">100px</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Vertical position</label>
+      <div class="slider-row">
+        <input type="range" id="bannerY" min="0" max="100" value="66" step="1">
+        <span class="slider-val" id="yVal">66%</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Banner width <span style="color:#555;font-size:0.7rem">(% of image)</span></label>
+      <div class="slider-row">
+        <input type="range" id="bannerWidth" min="20" max="85" value="46" step="1">
+        <span class="slider-val" id="wVal">46%</span>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+    <button class="export-btn" id="exportBtn">Export PNG (4800 × 960)</button>
+    <p class="hint">Full resolution 4800×960px PNG, ready for your website.</p>
+
+  </div>
+
+  <div class="preview-wrap">
+    <span class="preview-label">Live preview</span>
+    <canvas id="previewCanvas" width="4800" height="960"></canvas>
+    <p class="hint">Preview is scaled to fit — export will be at full 4800×960px resolution.</p>
+  </div>
+</div>
+
+<!-- Crop modal -->
+<div id="cropModal">
+  <h3>Crop image to 5:1</h3>
+  <p>Drag to position the crop window over the best part of your image</p>
+  <div id="cropWrap">
+    <img id="cropSourceImg" src="" alt="">
+    <div id="cropRect"></div>
+  </div>
+  <div class="crop-actions">
+    <button class="crop-btn crop-cancel" id="cropCancel">Cancel</button>
+    <button class="crop-btn crop-confirm" id="cropConfirm">Apply crop</button>
+  </div>
+</div>
+
+<script>
+const W = 4800, H = 960;
+const canvas = document.getElementById('previewCanvas');
+const ctx = canvas.getContext('2d');
+canvas.width = W; canvas.height = H;
+
+const CORP_COLORS = [
+  { name: 'Purple',        hex: '#830065' },
+  { name: 'Bright pink',   hex: '#D0006F' },
+  { name: 'University red',hex: '#D50032' },
+  { name: 'Burgundy',      hex: '#A50034' },
+  { name: 'University blue',hex:'#041E42' },
+  { name: 'Muted blue',    hex: '#004F71' },
+  { name: 'Bright blue',   hex: '#007288' },
+  { name: 'Jade',          hex: '#487A7B' },
+  { name: 'Dark green',    hex: '#154734' },
+  { name: 'Spruce grey',   hex: '#333F48' },
+  { name: 'Muted brown',   hex: '#6D4F47' },
+];
+
+let overlayColor = '#333F48';
+let bannerColor  = '#830065';
+let shape = 'chevron';
+let img = null;
+
+// Crop state
+let rawImg = null;
+let cropX = 0, cropY = 0, cropW = 0, cropH = 0;
+let dragging = false, dragStartX = 0, dragStartY = 0, initCropX = 0, initCropY = 0;
+
+function buildSwatches(containerId, initial, onSelect) {
+  const container = document.getElementById(containerId);
+  CORP_COLORS.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'swatch' + (c.hex.toLowerCase() === initial.toLowerCase() ? ' active' : '');
+    el.style.background = c.hex;
+    el.title = c.name + ' ' + c.hex;
+    el.addEventListener('click', () => {
+      container.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+      el.classList.add('active');
+      onSelect(c.hex);
+      draw();
+    });
+    container.appendChild(el);
+  });
+}
+
+buildSwatches('overlaySwatches', overlayColor, v => overlayColor = v);
+buildSwatches('bannerSwatches',  bannerColor,  v => bannerColor  = v);
+
+// Upload
+const zone = document.getElementById('uploadZone');
+const fileInput = document.getElementById('fileInput');
+zone.addEventListener('click', () => fileInput.click());
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+zone.addEventListener('drop', e => { e.preventDefault(); zone.classList.remove('drag'); loadFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', () => loadFile(fileInput.files[0]));
+
+function loadFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const i = new Image();
+    i.onload = async () => {
+      rawImg = i;
+      initDefaultCrop(i);
+      img = await renderCroppedImage();
+      draw();
+      document.getElementById('uploadLabel').textContent = file.name;
+      document.getElementById('cropBtnWrap').style.display = '';
+    };
+    i.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function initDefaultCrop(i) {
+  const targetRatio = W / H; // 5:1
+  const imgRatio = i.width / i.height;
+  if (imgRatio > targetRatio) {
+    // Image wider than needed: full height, centre horizontally
+    cropH = i.height;
+    cropW = Math.round(cropH * targetRatio);
+    cropX = Math.round((i.width - cropW) / 2);
+    cropY = 0;
+  } else {
+    // Image taller than needed: full width, centre vertically
+    cropW = i.width;
+    cropH = Math.round(cropW / targetRatio);
+    cropX = 0;
+    cropY = Math.round((i.height - cropH) / 2);
+  }
+}
+
+function renderCroppedImage() {
+  return new Promise(resolve => {
+    const offscreen = document.createElement('canvas');
+    offscreen.width = W; offscreen.height = H;
+    const c = offscreen.getContext('2d');
+    c.drawImage(rawImg, cropX, cropY, cropW, cropH, 0, 0, W, H);
+    const out = new Image();
+    out.onload = () => resolve(out);
+    out.src = offscreen.toDataURL();
+  });
+}
+
+// Crop modal
+const modal = document.getElementById('cropModal');
+const cropSourceImg = document.getElementById('cropSourceImg');
+const cropRect = document.getElementById('cropRect');
+const cropWrap = document.getElementById('cropWrap');
+
+document.getElementById('openCropBtn').addEventListener('click', openCropModal);
+document.getElementById('cropCancel').addEventListener('click', () => modal.classList.remove('open'));
+document.getElementById('cropConfirm').addEventListener('click', async () => {
+  // Convert display coords back to image coords
+  const displayW = cropSourceImg.offsetWidth;
+  const displayH = cropSourceImg.offsetHeight;
+  const scaleX = rawImg.width / displayW;
+  const scaleY = rawImg.height / displayH;
+
+  const rLeft   = parseInt(cropRect.style.left);
+  const rTop    = parseInt(cropRect.style.top);
+  const rWidth  = parseInt(cropRect.style.width);
+  const rHeight = parseInt(cropRect.style.height);
+
+  cropX = Math.round(rLeft  * scaleX);
+  cropY = Math.round(rTop   * scaleY);
+  cropW = Math.round(rWidth * scaleX);
+  cropH = Math.round(rHeight * scaleY);
+
+  // Clamp
+  cropX = Math.max(0, Math.min(rawImg.width  - cropW, cropX));
+  cropY = Math.max(0, Math.min(rawImg.height - cropH, cropY));
+
+  img = await renderCroppedImage();
+  draw();
+  modal.classList.remove('open');
+});
+
+function openCropModal() {
+  cropSourceImg.src = rawImg.src;
+  modal.classList.add('open');
+  // Give image time to layout
+  requestAnimationFrame(() => requestAnimationFrame(positionCropRect));
+}
+
+function positionCropRect() {
+  const displayW = cropSourceImg.offsetWidth;
+  const displayH = cropSourceImg.offsetHeight;
+  const scaleX = displayW / rawImg.width;
+  const scaleY = displayH / rawImg.height;
+
+  let rX = cropX * scaleX;
+  let rY = cropY * scaleY;
+  let rW = cropW * scaleX;
+  let rH = cropH * scaleY;
+
+  cropRect.style.left   = rX + 'px';
+  cropRect.style.top    = rY + 'px';
+  cropRect.style.width  = rW + 'px';
+  cropRect.style.height = rH + 'px';
+}
+
+// Drag crop rect
+cropWrap.addEventListener('mousedown', e => {
+  const rect = cropWrap.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const rLeft   = parseInt(cropRect.style.left)   || 0;
+  const rTop    = parseInt(cropRect.style.top)    || 0;
+  const rWidth  = parseInt(cropRect.style.width)  || 0;
+  const rHeight = parseInt(cropRect.style.height) || 0;
+
+  if (mx >= rLeft && mx <= rLeft + rWidth && my >= rTop && my <= rTop + rHeight) {
+    dragging = true;
+    dragStartX = mx; dragStartY = my;
+    initCropX = rLeft; initCropY = rTop;
+    e.preventDefault();
+  }
+});
+
+window.addEventListener('mousemove', e => {
+  if (!dragging) return;
+  const rect = cropWrap.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  const dx = mx - dragStartX;
+  const dy = my - dragStartY;
+  const rW = parseInt(cropRect.style.width);
+  const rH = parseInt(cropRect.style.height);
+  const wrapW = cropSourceImg.offsetWidth;
+  const wrapH = cropSourceImg.offsetHeight;
+  const newX = Math.max(0, Math.min(wrapW - rW, initCropX + dx));
+  const newY = Math.max(0, Math.min(wrapH - rH, initCropY + dy));
+  cropRect.style.left = newX + 'px';
+  cropRect.style.top  = newY + 'px';
+});
+
+window.addEventListener('mouseup', () => { dragging = false; });
+
+// Touch support for crop
+cropWrap.addEventListener('touchstart', e => {
+  const t = e.touches[0];
+  const rect = cropWrap.getBoundingClientRect();
+  const mx = t.clientX - rect.left;
+  const my = t.clientY - rect.top;
+  const rLeft  = parseInt(cropRect.style.left)  || 0;
+  const rTop   = parseInt(cropRect.style.top)   || 0;
+  const rWidth = parseInt(cropRect.style.width) || 0;
+  const rH2    = parseInt(cropRect.style.height)|| 0;
+  if (mx >= rLeft && mx <= rLeft+rWidth && my >= rTop && my <= rTop+rH2) {
+    dragging = true; dragStartX = mx; dragStartY = my;
+    initCropX = rLeft; initCropY = rTop;
+    e.preventDefault();
+  }
+}, { passive: false });
+window.addEventListener('touchmove', e => {
+  if (!dragging) return;
+  const t = e.touches[0];
+  const rect = cropWrap.getBoundingClientRect();
+  const mx = t.clientX - rect.left;
+  const my = t.clientY - rect.top;
+  const dx = mx - dragStartX, dy = my - dragStartY;
+  const rW = parseInt(cropRect.style.width);
+  const rH = parseInt(cropRect.style.height);
+  const wW = cropSourceImg.offsetWidth, wH = cropSourceImg.offsetHeight;
+  cropRect.style.left = Math.max(0, Math.min(wW - rW, initCropX + dx)) + 'px';
+  cropRect.style.top  = Math.max(0, Math.min(wH - rH, initCropY + dy)) + 'px';
+});
+window.addEventListener('touchend', () => { dragging = false; });
+
+// Sliders
+function bindSlider(id, outId, suffix) {
+  const el = document.getElementById(id), out = document.getElementById(outId);
+  el.addEventListener('input', () => { out.textContent = el.value + suffix; draw(); });
+}
+bindSlider('saturation', 'satVal', '%');
+bindSlider('overlayOpacity', 'opacVal', '%');
+bindSlider('fontSize', 'fontVal', 'px');
+bindSlider('bannerY', 'yVal', '%');
+bindSlider('bannerWidth', 'wVal', '%');
+document.getElementById('bannerText').addEventListener('input', draw);
+
+// Shape buttons
+document.querySelectorAll('.shape-btn[data-shape]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.shape-btn[data-shape]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    shape = btn.dataset.shape;
+    draw();
+  });
+});
+
+function hexToRgb(hex) {
+  const r = parseInt(hex.slice(1,3),16);
+  const g = parseInt(hex.slice(3,5),16);
+  const b = parseInt(hex.slice(5,7),16);
+  return {r,g,b};
+}
+
+// Banner shape: right-aligned, bleeds off RIGHT edge
+function drawBannerShape(ctx, rightEdgeX, y, w, h, shapeType, color) {
+  // rightEdgeX = W (bleeds off right)
+  // banner starts at rightEdgeX - w
+  const x = rightEdgeX - w;
+  const point = h * 0.55;
+
+  ctx.fillStyle = color;
+  ctx.beginPath();
+
+  if (shapeType === 'chevron') {
+    // Arrow point on LEFT, bleeds off right
+    ctx.moveTo(x + point, y);
+    ctx.lineTo(rightEdgeX, y);
+    ctx.lineTo(rightEdgeX, y + h);
+    ctx.lineTo(x + point, y + h);
+    ctx.lineTo(x, y + h / 2);
+    ctx.closePath();
+
+  } else if (shapeType === 'rounded') {
+    const r = h / 2;
+    ctx.moveTo(x + r, y);
+    ctx.arc(x + r, y + h/2, r, -Math.PI/2, Math.PI/2, true);
+    ctx.lineTo(x + r, y + h);
+    ctx.lineTo(rightEdgeX, y + h);
+    ctx.lineTo(rightEdgeX, y);
+    ctx.closePath();
+
+  } else if (shapeType === 'ribbon') {
+    // Inward notch on left, bleeds right
+    const notch = h * 0.4;
+    ctx.moveTo(x, y);
+    ctx.lineTo(rightEdgeX, y);
+    ctx.lineTo(rightEdgeX, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.lineTo(x + notch, y + h / 2);
+    ctx.closePath();
+
+  } else if (shapeType === 'slash') {
+    const slant = h * 0.6;
+    ctx.moveTo(x + slant, y);
+    ctx.lineTo(rightEdgeX, y);
+    ctx.lineTo(rightEdgeX, y + h);
+    ctx.lineTo(x, y + h);
+    ctx.closePath();
+  }
+  ctx.fill();
+}
+
+function draw() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Image
+  if (img && img.complete) {
+    const sat = +document.getElementById('saturation').value;
+    ctx.filter = `saturate(${sat}%)`;
+    ctx.drawImage(img, 0, 0, W, H);
+    ctx.filter = 'none';
+  } else {
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#444';
+    ctx.font = `${H * 0.06}px -apple-system, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Upload a photo to get started', W/2, H/2);
+  }
+
+  // Overlay
+  const oc = hexToRgb(overlayColor);
+  const oa = +document.getElementById('overlayOpacity').value / 100;
+  ctx.fillStyle = `rgba(${oc.r},${oc.g},${oc.b},${oa})`;
+  ctx.fillRect(0, 0, W, H);
+
+  // Banner
+  const bannerH = H * 0.33;
+  const bannerW = W * (+document.getElementById('bannerWidth').value / 100);
+  const bannerYpct = +document.getElementById('bannerY').value / 100;
+  const bannerTop = (H - bannerH) * bannerYpct;
+  const fs = +document.getElementById('fontSize').value;
+  const text = document.getElementById('bannerText').value || '';
+
+  drawBannerShape(ctx, W, bannerTop, bannerW, bannerH, shape, bannerColor);
+
+  // Text: left-aligned inside the banner shape
+  // For chevron/rounded, text starts after the point indent; for others, small padding
+  const point = bannerH * 0.55;
+  let textX;
+  if (shape === 'chevron') {
+    textX = W - bannerW + point + W * 0.015;
+  } else if (shape === 'rounded') {
+    textX = W - bannerW + bannerH / 2 + W * 0.01;
+  } else if (shape === 'ribbon') {
+    textX = W - bannerW + bannerH * 0.5 + W * 0.015;
+  } else {
+    textX = W - bannerW + point * 0.5 + W * 0.015;
+  }
+
+  ctx.fillStyle = '#ffffff';
+  ctx.font = `600 ${fs}px 'Crimson Pro', Georgia, serif`;
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+
+  const lines = text.split('\n');
+  const lineH = fs * 1.35;
+  const totalTextH = lines.length * lineH;
+  const textY = bannerTop + bannerH / 2 - totalTextH / 2 + lineH / 2;
+  lines.forEach((line, i) => {
+    ctx.fillText(line, textX, textY + i * lineH);
+  });
+}
+
+// Export
+document.getElementById('exportBtn').addEventListener('click', () => {
+  const link = document.createElement('a');
+  link.download = 'banner.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+});
+
+// Wait for Crimson Pro to load before first draw
+document.fonts.ready.then(() => draw());
+draw();
+</script>
+</body>
+</html>
