@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -10,18 +10,44 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
-      --bg:        #0f1420;
-      --surface:   #1a2030;
-      --surface2:  #131825;
-      --border:    #252e42;
-      --border2:   #2d3a52;
-      --text:      #e4e8f0;
-      --text-muted:#6b7a94;
-      --text-dim:  #a0aabb;
-      --accent:    #4ea8de;
-      --red:       #D50032;
-      --radius:    8px;
+    /* ── Light mode (default) ── */
+    :root, [data-theme="light"] {
+      --bg:         #f5f4f0;
+      --surface:    #ffffff;
+      --surface2:   #f0ede6;
+      --border:     #dcd9d2;
+      --border2:    #c4c0b8;
+      --text:       #1a1e2a;
+      --text-muted: #6b7080;
+      --text-dim:   #44495a;
+      --accent:     #007288;
+      --accent-ring:#007288;
+      --red:        #D50032;
+      --preview-bg: #e8e5de;
+      --slider-track: #c4c0b8;
+      --toggle-bg:  #dcd9d2;
+      --toggle-icon: "🌙";
+      --radius:     8px;
+    }
+
+    /* ── Dark mode ── */
+    [data-theme="dark"] {
+      --bg:         #0f1420;
+      --surface:    #1a2030;
+      --surface2:   #131825;
+      --border:     #252e42;
+      --border2:    #2d3a52;
+      --text:       #e4e8f0;
+      --text-muted: #6b7a94;
+      --text-dim:   #a0aabb;
+      --accent:     #4ea8de;
+      --accent-ring:#4ea8de;
+      --red:        #D50032;
+      --preview-bg: #0a0f1a;
+      --slider-track: #2d3a52;
+      --toggle-bg:  #252e42;
+      --toggle-icon: "☀️";
+      --radius:     8px;
     }
 
     body {
@@ -30,9 +56,10 @@
       font-family: 'Inter', system-ui, sans-serif;
       min-height: 100vh;
       padding: 24px 20px 40px;
+      transition: background 0.2s, color 0.2s;
     }
 
-    /* ── Header ── */
+    /* ── App header ── */
     .app-header {
       display: flex;
       align-items: center;
@@ -51,13 +78,12 @@
       color: var(--text);
       letter-spacing: -0.01em;
     }
-    .app-header .attribution {
+    .attribution {
       font-size: 10px;
       color: var(--text-muted);
       margin-left: 2px;
     }
-    .app-header .size-badge {
-      margin-left: auto;
+    .size-badge {
       font-size: 10px;
       color: var(--text-muted);
       background: var(--surface);
@@ -68,13 +94,34 @@
       flex-shrink: 0;
     }
 
+    /* ── Dark mode toggle ── */
+    .theme-toggle {
+      margin-left: auto;
+      background: var(--toggle-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s, color 0.2s;
+      flex-shrink: 0;
+    }
+    .theme-toggle:hover { color: var(--text); }
+    .theme-toggle-icon { font-size: 14px; line-height: 1; }
+
     /* ── Preview ── */
     .preview-wrap {
-      background: #0a0f1a;
+      background: var(--preview-bg);
       border-radius: var(--radius);
       padding: 10px;
       margin-bottom: 14px;
       border: 1px solid var(--border);
+      transition: background 0.2s;
     }
     #bm-canvas {
       width: 100%;
@@ -89,7 +136,7 @@
       margin-top: 8px;
     }
 
-    /* ── Grid ── */
+    /* ── Layout ── */
     .grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -100,12 +147,13 @@
       .grid-2 { grid-template-columns: 1fr; }
     }
 
-    /* ── Panel ── */
+    /* ── Panels ── */
     .panel {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 16px 18px;
+      transition: background 0.2s, border-color 0.2s;
     }
     .section-label {
       display: block;
@@ -115,6 +163,11 @@
       letter-spacing: 0.09em;
       color: var(--text-muted);
       margin-bottom: 14px;
+    }
+    .sub-divider {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
     }
 
     /* ── Upload ── */
@@ -132,10 +185,11 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      transition: border-color 0.2s, color 0.2s;
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
     }
     .upload-label:hover { border-color: var(--accent); color: var(--text); }
-    .upload-label.loaded { color: #61BF1A; border-color: #61BF1A55; }
+    .upload-label.loaded { color: #3a9e00; border-color: #3a9e0055; }
+    [data-theme="dark"] .upload-label.loaded { color: #61BF1A; border-color: #61BF1A55; }
 
     /* ── Sliders ── */
     .slider-row { margin-bottom: 14px; }
@@ -163,21 +217,23 @@
       height: 4px;
       accent-color: var(--accent);
       cursor: pointer;
-      background: var(--border2);
+      background: var(--slider-track);
       border-radius: 2px;
       appearance: none;
       -webkit-appearance: none;
       outline: none;
+      transition: background 0.2s;
     }
     input[type="range"]::-webkit-slider-thumb {
       -webkit-appearance: none;
-      width: 14px; height: 14px;
+      width: 15px; height: 15px;
       border-radius: 50%;
       background: var(--accent);
       cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
     }
     input[type="range"]::-moz-range-thumb {
-      width: 14px; height: 14px;
+      width: 15px; height: 15px;
       border-radius: 50%;
       background: var(--accent);
       border: none;
@@ -198,11 +254,11 @@
       line-height: 1.5;
       margin-bottom: 14px;
       outline: none;
-      transition: border-color 0.2s;
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
     }
     textarea:focus { border-color: var(--accent); }
 
-    /* ── Swatches ── */
+    /* ── Colour swatches ── */
     .swatches {
       display: flex;
       flex-wrap: wrap;
@@ -219,8 +275,11 @@
     .swatch:hover { transform: scale(1.1); }
     .swatch.sel {
       border: 2.5px solid #fff;
-      box-shadow: 0 0 0 2.5px var(--accent), 0 2px 8px rgba(0,0,0,0.35);
+      box-shadow: 0 0 0 2.5px var(--accent-ring), 0 2px 8px rgba(0,0,0,0.25);
       transform: scale(1.18);
+    }
+    [data-theme="light"] .swatch.sel {
+      border: 2.5px solid var(--bg);
     }
     .swatch-orig {
       background: var(--surface2);
@@ -232,13 +291,13 @@
       justify-content: center;
     }
     .swatch-orig.sel {
-      border: 2.5px solid #fff !important;
-      box-shadow: 0 0 0 2.5px var(--accent), 0 2px 8px rgba(0,0,0,0.35);
+      border: 2.5px solid var(--bg) !important;
+      box-shadow: 0 0 0 2.5px var(--accent-ring), 0 2px 8px rgba(0,0,0,0.2);
       transform: scale(1.18);
     }
     .colour-hint {
       font-size: 11px;
-      color: var(--text-dim);
+      color: var(--text-muted);
       margin-bottom: 9px;
       min-height: 16px;
     }
@@ -250,13 +309,9 @@
       padding-top: 10px;
       border-top: 1px solid var(--border);
     }
-    .sub-divider { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
 
     /* ── Background buttons ── */
-    .bg-row {
-      display: flex;
-      gap: 8px;
-    }
+    .bg-row { display: flex; gap: 8px; }
     .bg-btn {
       flex: 1;
       padding: 10px 4px;
@@ -264,7 +319,7 @@
       cursor: pointer;
       font-size: 10px;
       font-family: 'Inter', system-ui, sans-serif;
-      font-weight: 500;
+      font-weight: 600;
       border: 2px solid transparent;
       transition: border-color 0.15s;
       color: #333;
@@ -272,7 +327,7 @@
     .bg-btn:hover { border-color: #aaa; }
     .bg-btn.sel { border-color: var(--accent); }
 
-    /* ── Download button ── */
+    /* ── Download ── */
     .btn-download {
       display: block;
       width: 100%;
@@ -288,8 +343,7 @@
       letter-spacing: 0.02em;
       transition: opacity 0.15s;
     }
-    .btn-download:hover { opacity: 0.9; }
-    .btn-download:active { opacity: 0.8; }
+    .btn-download:hover { opacity: 0.88; }
   </style>
 </head>
 <body>
@@ -299,6 +353,10 @@
     <h1>LEARN Doc Header Maker</h1>
     <span class="attribution">made with Claude</span>
     <span class="size-badge">1920 &times; 320 px</span>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
+      <span class="theme-toggle-icon" id="toggle-icon">🌙</span>
+      <span id="toggle-label">Dark mode</span>
+    </button>
   </header>
 
   <div class="preview-wrap">
@@ -424,6 +482,20 @@
     };
 
     const canvas = document.getElementById("bm-canvas");
+
+    /* ── Theme toggle ── */
+    const html = document.documentElement;
+    const toggleBtn = document.getElementById("theme-toggle");
+    const toggleIcon = document.getElementById("toggle-icon");
+    const toggleLabel = document.getElementById("toggle-label");
+    let darkMode = false;
+
+    toggleBtn.addEventListener("click", () => {
+      darkMode = !darkMode;
+      html.setAttribute("data-theme", darkMode ? "dark" : "light");
+      toggleIcon.textContent = darkMode ? "☀️" : "🌙";
+      toggleLabel.textContent = darkMode ? "Light mode" : "Dark mode";
+    });
 
     /* ── Text wrapping ── */
     function drawWrappedText(cx, text, x, y, maxW, lh) {
@@ -566,8 +638,7 @@
       const origBtn = document.createElement("button");
       origBtn.className = "swatch swatch-orig sel";
       origBtn.title = "Original colours";
-      origBtn.textContent = "\u2b50";
-      origBtn.style.fontSize = "11px";
+      origBtn.textContent = "\u2605";
       origBtn.addEventListener("click", () => {
         row.querySelectorAll(".swatch").forEach(b => b.classList.remove("sel"));
         origBtn.classList.add("sel");
