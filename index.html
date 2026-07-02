@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEARN Tools — EMS Digital Education Unit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red:        #D50032;
+      --blue:       #041E42;
+      --bright-blue:#007288;
+      --jade:       #487A7B;
+      --purple:     #830065;
+      --dark-green: #154734;
+      --muted-blue: #004F71;
+      --spruce:     #333F48;
+
+      --bg:         #f5f4f0;
+      --card-bg:    #ffffff;
+      --text:       #1a1a2e;
+      --text-muted: #555e6e;
+      --border:     #dde0e6;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Source Sans 3', system-ui, sans-serif;
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── Hero header ── */
+    .hero {
+      background: var(--blue);
+      padding: 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-inner {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 42px 28px 38px;
+      position: relative;
+      z-index: 1;
+    }
+    .hero-eyebrow {
+      font-family: 'Source Sans 3', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--jade);
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .hero-eyebrow::before {
+      content: '';
+      display: inline-block;
+      width: 24px; height: 2px;
+      background: var(--jade);
+      border-radius: 1px;
+    }
+    .hero h1 {
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: clamp(32px, 5vw, 52px);
+      font-weight: 600;
+      color: #ffffff;
+      line-height: 1.1;
+      margin-bottom: 14px;
+      letter-spacing: -0.01em;
+    }
+    .hero h1 span {
+      color: var(--jade);
+    }
+    .hero-sub {
+      font-size: 15px;
+      color: #a8b8cc;
+      max-width: 560px;
+      line-height: 1.65;
+    }
+
+    /* Decorative colour bar at bottom of hero */
+    .hero-bar {
+      height: 5px;
+      background: linear-gradient(to right,
+        #D50032 0%, #D50032 16.6%,
+        #007288 16.6%, #007288 33.2%,
+        #487A7B 33.2%, #487A7B 49.8%,
+        #830065 49.8%, #830065 66.4%,
+        #154734 66.4%, #154734 83%,
+        #C25E03 83%, #C25E03 100%
+      );
+    }
+
+    /* ── Main content ── */
+    .main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 40px 28px 60px;
+    }
+
+    .section-heading {
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--blue);
+      margin-bottom: 6px;
+    }
+    .section-intro {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+
+    /* ── Tool cards ── */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+    @media (max-width: 580px) {
+      .tools-grid { grid-template-columns: 1fr; }
+    }
+
+    .tool-card {
+      background: var(--card-bg);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: box-shadow 0.2s, transform 0.2s;
+      text-decoration: none;
+      color: inherit;
+    }
+    .tool-card:hover {
+      box-shadow: 0 6px 24px rgba(0,0,0,0.10);
+      transform: translateY(-2px);
+    }
+    .tool-card-top {
+      height: 6px;
+      flex-shrink: 0;
+    }
+    .tool-card-body {
+      padding: 20px 22px 22px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+    .tool-card-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 8px;
+    }
+    .tool-card h2 {
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--blue);
+      line-height: 1.2;
+      margin-bottom: 10px;
+    }
+    .tool-card p {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      flex: 1;
+      margin-bottom: 18px;
+    }
+    .tool-card-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      color: #fff;
+      align-self: flex-start;
+      transition: opacity 0.15s;
+    }
+    .tool-card-link:hover { opacity: 0.88; }
+    .tool-card-link::after { content: " →"; }
+
+    /* ── SharePoint section ── */
+    .sharepoint-card {
+      background: var(--card-bg);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      border-left: 5px solid var(--muted-blue);
+      padding: 22px 26px;
+      margin-bottom: 40px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 500px) {
+      .sharepoint-card { grid-template-columns: 1fr; }
+    }
+    .sharepoint-card h2 {
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--blue);
+      margin-bottom: 6px;
+    }
+    .sharepoint-card p {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 10px;
+    }
+    .sharepoint-note {
+      font-size: 12px;
+      color: var(--text-muted);
+      background: #f0f4f8;
+      border-radius: 6px;
+      padding: 10px 14px;
+      line-height: 1.6;
+      border-left: 3px solid var(--muted-blue);
+    }
+    .sharepoint-note a {
+      color: var(--muted-blue);
+      font-weight: 600;
+    }
+    .sharepoint-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--muted-blue);
+      color: #fff;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 18px;
+      border-radius: 7px;
+      white-space: nowrap;
+      transition: opacity 0.15s;
+      align-self: flex-start;
+    }
+    .sharepoint-btn:hover { opacity: 0.88; }
+    .sharepoint-btn::after { content: " ↗"; }
+
+    /* ── Footer ── */
+    footer {
+      background: var(--blue);
+      color: #7a90aa;
+      font-size: 13px;
+      padding: 28px;
+      text-align: center;
+      line-height: 1.8;
+    }
+    footer strong { color: #c8d8e8; }
+    footer a { color: var(--jade); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .footer-divider {
+      width: 40px; height: 2px;
+      background: var(--jade);
+      border-radius: 1px;
+      margin: 16px auto;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="hero-eyebrow">EMS Digital Education Unit</div>
+      <h1>LEARN <span>Tools</span></h1>
+      <p class="hero-sub">A collection of browser-based tools for creating branded visual assets for use in LEARN and across the Edinburgh Medical School's digital learning environment. No installation required — open any tool and get started.</p>
+    </div>
+    <div class="hero-bar"></div>
+  </header>
+
+  <main class="main">
+
+    <p class="section-heading">Available tools</p>
+    <p class="section-intro">Click any tool to open it in your browser. All tools run locally — nothing is uploaded to any server.</p>
+
+    <div class="tools-grid">
+
+      <a class="tool-card" href="https://mattoteacher.github.io/learn-tools/video-thumbnail-maker.html">
+        <div class="tool-card-top" style="background:#007288;"></div>
+        <div class="tool-card-body">
+          <span class="tool-card-label" style="color:#007288;">Video</span>
+          <h2>Video Thumbnail Creator</h2>
+          <p>Create branded thumbnail images for videos hosted on Media Hopper Create — the university's video platform. Add the video title, presenter names, and course details, then export a PNG ready to attach as the video's preview image in LEARN or elsewhere.</p>
+          <span class="tool-card-link" style="background:#007288;">Open tool</span>
+        </div>
+      </a>
+
+      <a class="tool-card" href="https://mattoteacher.github.io/learn-tools/course-banner-maker.html">
+        <div class="tool-card-top" style="background:#D50032;"></div>
+        <div class="tool-card-body">
+          <span class="tool-card-label" style="color:#D50032;">Course</span>
+          <h2>Course Banner Image Creator</h2>
+          <p>Generate themed banner images for LEARN course pages. Incorporate university brand colours and add programme or course text to create a consistent visual identity that helps students recognise and navigate between courses at a glance.</p>
+          <span class="tool-card-link" style="background:#D50032;">Open tool</span>
+        </div>
+      </a>
+
+      <a class="tool-card" href="https://mattoteacher.github.io/learn-tools/learn-header-maker.html">
+        <div class="tool-card-top" style="background:#487A7B;"></div>
+        <div class="tool-card-body">
+          <span class="tool-card-label" style="color:#487A7B;">Documents</span>
+          <h2>LEARN Document Header Creator</h2>
+          <p>Create branded 1920×320px header images for documents and pages within LEARN. Upload an icon, set your heading text, choose from university brand colours, and download a ready-to-use PNG — a faster, more consistent alternative to building headers in PowerPoint.</p>
+          <span class="tool-card-link" style="background:#487A7B;">Open tool</span>
+        </div>
+      </a>
+
+      <a class="tool-card" href="https://mattoteacher.github.io/learn-tools/module-icon-builder/index.html">
+        <div class="tool-card-top" style="background:#830065;"></div>
+        <div class="tool-card-body">
+          <span class="tool-card-label" style="color:#830065;">Modules</span>
+          <h2>Learning Module Icon Creator</h2>
+          <p>Design simple icon-based images for learning modules within LEARN courses. Using university colours and a consistent visual style across modules helps students navigate content more easily, even when moving between different courses.</p>
+          <span class="tool-card-link" style="background:#830065;">Open tool</span>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- SharePoint icon library -->
+    <p class="section-heading">Icon library</p>
+    <p class="section-intro">A shared library of flat icons is available on SharePoint for use with the tools above.</p>
+
+    <div class="sharepoint-card">
+      <div>
+        <h2>Flat Icons Library</h2>
+        <p>A collection of flat icon images available for use in the tools above. Hosted on SharePoint and accessible to EMS staff. Icons work best with the recolouring features in the tools — choose an icon, pick a university brand colour, and they'll match your document's visual theme.</p>
+        <div class="sharepoint-note">
+          <strong>Access note:</strong> This folder is on SharePoint and is available to EMS staff.
+          If you do not have access, please contact Matt at the EMS Digital Education Unit:
+          <a href="mailto:Med.digital.education@ed.ac.uk">Med.digital.education@ed.ac.uk</a>
+        </div>
+      </div>
+      <a class="sharepoint-btn" href="https://uoe.sharepoint.com/:f:/r/sites/USHER-DEU/Shared%20Documents/Flat%20Icons?csf=1&web=1&e=DbXuqM" target="_blank" rel="noopener">Open in SharePoint</a>
+    </div>
+
+  </main>
+
+  <footer>
+    <div>
+      <strong>EMS Digital Education Unit</strong><br>
+      Edinburgh Medical School, University of Edinburgh
+    </div>
+    <div class="footer-divider"></div>
+    <div>
+      Questions or feedback? Contact
+      <a href="mailto:Med.digital.education@ed.ac.uk">Med.digital.education@ed.ac.uk</a><br>
+      Tools built with Claude · All tools run entirely in your browser
+    </div>
+  </footer>
+
+</body>
+</html>
