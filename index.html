@@ -19,6 +19,7 @@
       --dark-green: #154734;
       --muted-blue: #004F71;
       --spruce:     #333F48;
+      --orange:     #C25E03;
 
       --bg:         #f5f4f0;
       --card-bg:    #ffffff;
@@ -35,7 +36,7 @@
       line-height: 1.6;
     }
 
-    /* ── Hero header ── */
+    /* ── Hero ── */
     .hero {
       background: var(--blue);
       padding: 0;
@@ -43,14 +44,13 @@
       overflow: hidden;
     }
     .hero-inner {
-      max-width: 860px;
+      max-width: 900px;
       margin: 0 auto;
       padding: 42px 28px 38px;
       position: relative;
       z-index: 1;
     }
     .hero-eyebrow {
-      font-family: 'Source Sans 3', sans-serif;
       font-size: 11px;
       font-weight: 600;
       letter-spacing: 0.12em;
@@ -77,32 +77,29 @@
       margin-bottom: 14px;
       letter-spacing: -0.01em;
     }
-    .hero h1 span {
-      color: var(--jade);
-    }
+    .hero h1 span { color: var(--jade); }
     .hero-sub {
       font-size: 15px;
       color: #a8b8cc;
-      max-width: 560px;
+      max-width: 580px;
       line-height: 1.65;
     }
-
-    /* Decorative colour bar at bottom of hero */
     .hero-bar {
       height: 5px;
       background: linear-gradient(to right,
-        #D50032 0%, #D50032 16.6%,
-        #007288 16.6%, #007288 33.2%,
-        #487A7B 33.2%, #487A7B 49.8%,
-        #830065 49.8%, #830065 66.4%,
-        #154734 66.4%, #154734 83%,
-        #C25E03 83%, #C25E03 100%
+        #D50032 0%,    #D50032 14.2%,
+        #007288 14.2%, #007288 28.4%,
+        #487A7B 28.4%, #487A7B 42.6%,
+        #830065 42.6%, #830065 56.8%,
+        #154734 56.8%, #154734 71%,
+        #C25E03 71%,   #C25E03 85.2%,
+        #004F71 85.2%, #004F71 100%
       );
     }
 
-    /* ── Main content ── */
+    /* ── Main ── */
     .main {
-      max-width: 860px;
+      max-width: 900px;
       margin: 0 auto;
       padding: 40px 28px 60px;
     }
@@ -120,17 +117,28 @@
       margin-bottom: 24px;
     }
 
-    /* ── Tool cards ── */
+    /* ── Tool cards grid ── */
     .tools-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .tools-grid-bottom {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 16px;
       margin-bottom: 40px;
     }
-    @media (max-width: 580px) {
-      .tools-grid { grid-template-columns: 1fr; }
+    @media (max-width: 680px) {
+      .tools-grid,
+      .tools-grid-bottom { grid-template-columns: 1fr; }
+    }
+    @media (min-width: 681px) and (max-width: 860px) {
+      .tools-grid { grid-template-columns: 1fr 1fr; }
     }
 
+    /* ── Tool card (browser tool) ── */
     .tool-card {
       background: var(--card-bg);
       border-radius: 10px;
@@ -146,10 +154,7 @@
       box-shadow: 0 6px 24px rgba(0,0,0,0.10);
       transform: translateY(-2px);
     }
-    .tool-card-top {
-      height: 6px;
-      flex-shrink: 0;
-    }
+    .tool-card-top { height: 6px; flex-shrink: 0; }
     .tool-card-body {
       padding: 20px 22px 22px;
       display: flex;
@@ -165,14 +170,14 @@
     }
     .tool-card h2 {
       font-family: 'Crimson Pro', Georgia, serif;
-      font-size: 22px;
+      font-size: 21px;
       font-weight: 600;
       color: var(--blue);
       line-height: 1.2;
       margin-bottom: 10px;
     }
     .tool-card p {
-      font-size: 13.5px;
+      font-size: 13px;
       color: var(--text-muted);
       line-height: 1.6;
       flex: 1;
@@ -181,7 +186,6 @@
     .tool-card-link {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
       font-size: 13px;
       font-weight: 600;
       text-decoration: none;
@@ -193,6 +197,84 @@
     }
     .tool-card-link:hover { opacity: 0.88; }
     .tool-card-link::after { content: " →"; }
+
+    /* ── Power App card (different style) ── */
+    .powerapps-card {
+      background: var(--card-bg);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      border-left: 6px solid var(--spruce);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      color: inherit;
+    }
+    .powerapps-card-body {
+      padding: 20px 22px 22px;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+    .powerapps-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--spruce);
+      background: #f0f2f4;
+      border: 1px solid #d4d8de;
+      border-radius: 4px;
+      padding: 3px 8px;
+      margin-bottom: 10px;
+      align-self: flex-start;
+    }
+    .powerapps-card h2 {
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 21px;
+      font-weight: 600;
+      color: var(--blue);
+      line-height: 1.2;
+      margin-bottom: 10px;
+    }
+    .powerapps-card p {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      flex: 1;
+      margin-bottom: 14px;
+    }
+    .powerapps-note {
+      font-size: 12px;
+      color: var(--text-muted);
+      background: #f5f4f0;
+      border-radius: 6px;
+      padding: 10px 14px;
+      line-height: 1.6;
+      border-left: 3px solid var(--spruce);
+      margin-bottom: 16px;
+    }
+    .powerapps-note a {
+      color: var(--spruce);
+      font-weight: 600;
+    }
+    .powerapps-link {
+      display: inline-flex;
+      align-items: center;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      color: #fff;
+      background: var(--spruce);
+      align-self: flex-start;
+      transition: opacity 0.15s;
+    }
+    .powerapps-link:hover { opacity: 0.88; }
+    .powerapps-link::after { content: " ↗"; }
 
     /* ── SharePoint section ── */
     .sharepoint-card {
@@ -239,7 +321,6 @@
     .sharepoint-btn {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
       background: var(--muted-blue);
       color: #fff;
       text-decoration: none;
@@ -279,17 +360,18 @@
 
   <header class="hero">
     <div class="hero-inner">
-      <div class="hero-eyebrow">Matt's LEARN TOOLS</div>
+      <div class="hero-eyebrow">Matt's LEARN Tools</div>
       <h1>LEARN <span>Tools</span></h1>
-      <p class="hero-sub">A collection of browser-based tools for creating branded visual assets for use in EMS LEARN courses. No installation required — open any tool and get started.</p>
+      <p class="hero-sub">A personal collection of browser-based tools for creating visual assets and course content for use in LEARN. No installation required — open any tool and get started.</p>
     </div>
     <div class="hero-bar"></div>
   </header>
 
   <main class="main">
 
-    <p class="section-heading">Available tools</p>
-    <p class="section-intro">Click any tool to open it in your browser. All tools run locally — nothing is uploaded to any server.</p>
+    <!-- Browser tools -->
+    <p class="section-heading">Browser tools</p>
+    <p class="section-intro">These tools run entirely in your browser — nothing is uploaded to any server. Click to open.</p>
 
     <div class="tools-grid">
 
@@ -298,7 +380,7 @@
         <div class="tool-card-body">
           <span class="tool-card-label" style="color:#007288;">Video</span>
           <h2>Video Thumbnail Creator</h2>
-          <p>Create branded thumbnail images for videos hosted on Media Hopper Create — the university's video platform. Add the video title, presenter names, and course details, then export a PNG ready to attach as the video's preview image in LEARN or elsewhere.</p>
+          <p>Create thumbnail images for videos on Media Hopper Create. Add the video title, presenter names, and course details, then export a PNG ready to use as the video's preview image in LEARN or elsewhere.</p>
           <span class="tool-card-link" style="background:#007288;">Open tool</span>
         </div>
       </a>
@@ -308,7 +390,7 @@
         <div class="tool-card-body">
           <span class="tool-card-label" style="color:#D50032;">Course</span>
           <h2>Course Banner Image Creator</h2>
-          <p>Generate themed banner images for LEARN course pages. Incorporate university brand colours and add programme or course text to create a consistent visual identity that helps students recognise and navigate between courses at a glance.</p>
+          <p>Generate themed banner images for LEARN course pages. Choose brand colours and add programme or course text to create a consistent visual identity that helps students recognise courses at a glance.</p>
           <span class="tool-card-link" style="background:#D50032;">Open tool</span>
         </div>
       </a>
@@ -318,21 +400,56 @@
         <div class="tool-card-body">
           <span class="tool-card-label" style="color:#487A7B;">Documents</span>
           <h2>LEARN Document Header Creator</h2>
-          <p>Create branded 1920×320px header images for documents and pages within LEARN. Upload an icon, set your heading text, choose from university brand colours, and download a ready-to-use PNG — a faster, more consistent alternative to building headers in PowerPoint.</p>
+          <p>Create branded 1920&times;320px header images for documents and pages within LEARN. Upload an icon, set your heading text, choose brand colours, and download a ready-to-use PNG.</p>
           <span class="tool-card-link" style="background:#487A7B;">Open tool</span>
         </div>
       </a>
+
+    </div>
+
+    <div class="tools-grid-bottom">
 
       <a class="tool-card" href="https://mattoteacher.github.io/learn-tools/module-image-builder/index.html">
         <div class="tool-card-top" style="background:#830065;"></div>
         <div class="tool-card-body">
           <span class="tool-card-label" style="color:#830065;">Modules</span>
           <h2>Learning Module Icon Creator</h2>
-          <p>Design simple icon or photo based images for learning modules within LEARN courses. Using university colours and a consistent visual style across modules helps students navigate content more easily, even when moving between different courses.</p>
+          <p>Design simple icon or photo based images for learning modules within LEARN courses. A consistent visual style across modules helps students navigate content more easily, even between different courses.</p>
           <span class="tool-card-link" style="background:#830065;">Open tool</span>
         </div>
       </a>
 
+      <a class="tool-card" href="https://mattoteacher.github.io/learn-tools/quote-builder/index.html">
+        <div class="tool-card-top" style="background:#C25E03;"></div>
+        <div class="tool-card-body">
+          <span class="tool-card-label" style="color:#C25E03;">Content</span>
+          <h2>Quote Builder</h2>
+          <p>Generate stylised pull-quote HTML to embed directly into LEARN pages. Choose from a selection of brand-coloured quote styles, enter your text, and copy the ready-to-paste HTML code.</p>
+          <span class="tool-card-link" style="background:#C25E03;">Open tool</span>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- Power App tool -->
+    <p class="section-heading">Staff tools</p>
+    <p class="section-intro">This tool requires a Microsoft 365 login and some initial setup. Get in touch if you'd like access.</p>
+
+    <div class="tools-grid-bottom" style="margin-bottom:40px;">
+      <div class="powerapps-card">
+        <div class="powerapps-card-body">
+          <span class="powerapps-badge">&#9632; Power App &middot; Login required</span>
+          <h2>Staff Contacts Page Builder</h2>
+          <p>Create stylised HTML for course or programme contacts pages in LEARN, including staff photos, bios, and contact information. The app reads from a SharePoint list and generates ready-to-use HTML to paste into your course.</p>
+          <div class="powerapps-note">
+            <strong>Access &amp; setup:</strong> This app requires access to both the Power App and its associated SharePoint list. Staff photos also need to be uploaded to a content repository in a specific format. Click the link to request access through Microsoft, then <a href="mailto:Matt.Sanders@ed.ac.uk">get in touch</a> and I can help with the setup.
+          </div>
+          <a class="powerapps-link" href="https://apps.powerapps.com/play/e/default-2e9f06b0-1669-4589-8789-10a06934dc61/a/a9c3655a-04a9-4af9-bfda-91371b035447?tenantId=2e9f06b0-1669-4589-8789-10a06934dc61&hint=9bad43ec-1d16-44e1-b44e-14a2fce1f89a&sourcetime=1783524373595" target="_blank" rel="noopener">Open in Power Apps</a>
+        </div>
+      </div>
+
+      <!-- Placeholder column for visual balance -->
+      <div></div>
     </div>
 
     <!-- SharePoint icon library -->
@@ -342,11 +459,11 @@
     <div class="sharepoint-card">
       <div>
         <h2>Icons and Image Library</h2>
-        <p>A collection of icons, illustrations, and photos used in LEARN courses and the tools above. Hosted on SharePoint and accessible to EMS staff. Icons(svg files) work best with the recolouring features in the tools — choose an icon, pick a university brand colour, and they'll match your document's visual theme.</p>
+        <p>A collection of icons, illustrations, and photos for use in LEARN courses and with the tools above. SVG icons work best with the recolouring features in the tools — choose an icon, pick a brand colour, and they'll match your document's visual theme.</p>
         <div class="sharepoint-note">
-          <strong>Access note:</strong> This folder is on SharePoint and is available to EMS staff.
-          If you do not have access, please contact Matt at the EMS Digital Education Unit:
-          <a href="mailto:Matt.Sanders@ed.ac.uk">Med.digital.education@ed.ac.uk</a>
+          <strong>Access note:</strong> This folder is on SharePoint and requires a university login.
+          If you don't have access, get in touch and I'll sort it out:
+          <a href="mailto:Matt.Sanders@ed.ac.uk">Matt.Sanders@ed.ac.uk</a>
         </div>
       </div>
       <a class="sharepoint-btn" href="https://uoe.sharepoint.com/sites/USHER-DEU/Shared%20Documents/Forms/AllItems.aspx" target="_blank" rel="noopener">Open in SharePoint</a>
@@ -356,14 +473,13 @@
 
   <footer>
     <div>
-      <strong>Matt Sanders</strong><br>
-      EMS DEU, University of Edinburgh
+      <strong>Matt Sanders</strong>
     </div>
     <div class="footer-divider"></div>
     <div>
-      Questions or feedback? Contact
-      <a href="mailto:Matt.Sanders@ed.ac.uk">Matt Sanders (EMS DEU)</a><br>
-      Tools built with code support from (Anthropic)Claude· All tools run entirely in your browser.
+      Questions or feedback? Get in touch:
+      <a href="mailto:Matt.Sanders@ed.ac.uk">Matt.Sanders@ed.ac.uk</a><br>
+      Tools built with Claude &middot; All browser tools run entirely in your browser
     </div>
   </footer>
 
