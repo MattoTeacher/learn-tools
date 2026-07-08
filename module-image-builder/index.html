@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Module Image Builder</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <main class="app-shell">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">Digital Education Unit</p>
+        <h1>Module Image Builder</h1>
+        <p>Create consistent module images using approved colours, icons and image treatments.</p>
+      </div>
+    </header>
+
+    <section class="layout">
+      <aside class="panel module-panel" aria-label="Module type">
+        <h2>Choose type</h2>
+        <div class="module-grid" id="moduleTypeGrid">
+          <button class="module-card active" data-mode="teaching">
+            <span>Teaching Week</span>
+            <small>Create a week or combined-weeks image using the calendar icon.</small>
+          </button>
+          <button class="module-card" data-mode="reading">
+            <span>Reading Week</span>
+            <small>Use the reading week icon for independent study or catch-up weeks.</small>
+          </button>
+          <button class="module-card" data-mode="assessment">
+            <span>Assessment</span>
+            <small>Create an assessment or coursework module image.</small>
+          </button>
+          <button class="module-card" data-mode="welcome">
+            <span>Welcome</span>
+            <small>Create a course information or welcome module image.</small>
+          </button>
+          <button class="module-card" data-mode="other">
+            <span>Other SVG</span>
+            <small>Upload another SVG icon. The Digital Education Unit also has a selection of icons to choose from.</small>
+          </button>
+          <button class="module-card" data-mode="photo">
+            <span>Photo Module</span>
+            <small>Upload an image, crop it, adjust saturation and apply a branded border.</small>
+          </button>
+        </div>
+      </aside>
+
+      <section class="panel controls-panel">
+        <h2>Customise</h2>
+
+        <div id="iconControls" class="control-stack">
+          <div class="field calendar-only">
+            <label for="calendarHeader">Calendar header</label>
+            <input id="calendarHeader" type="text" value="Week" maxlength="18" />
+          </div>
+
+          <div class="field calendar-only">
+            <label for="calendarMain">Calendar text</label>
+            <input id="calendarMain" type="text" value="1" maxlength="18" />
+          </div>
+
+          <div class="field other-only hidden">
+            <label for="svgUpload">Upload SVG icon</label>
+            <input id="svgUpload" type="file" accept=".svg,image/svg+xml" />
+            <p class="help">SVG files only. Icons with simple line artwork usually work best.</p>
+          </div>
+
+          <div class="field">
+            <label>University colour</label>
+            <div class="swatches" id="colourSwatches"></div>
+          </div>
+
+          <div class="field">
+            <label for="themeSelect">Theme</label>
+            <select id="themeSelect"></select>
+            <p id="themeDescription" class="help"></p>
+          </div>
+
+          <div class="field">
+            <label for="iconSize">Icon size</label>
+            <input id="iconSize" type="range" min="40" max="92" value="68" />
+          </div>
+        </div>
+
+        <div id="photoControls" class="control-stack hidden">
+          <div class="field">
+            <label for="photoUpload">Upload image</label>
+            <input id="photoUpload" type="file" accept="image/png,image/jpeg,image/webp" />
+            <p class="help">PNG, JPEG or WebP. Use images you have permission to use.</p>
+          </div>
+
+          <div class="two-col">
+            <div class="field">
+              <label for="photoZoom">Crop zoom</label>
+              <input id="photoZoom" type="range" min="100" max="260" value="120" />
+            </div>
+            <div class="field">
+              <label for="photoSaturation">Saturation</label>
+              <input id="photoSaturation" type="range" min="0" max="160" value="75" />
+            </div>
+          </div>
+
+          <div class="two-col">
+            <div class="field">
+              <label for="photoX">Horizontal crop</label>
+              <input id="photoX" type="range" min="0" max="100" value="50" />
+            </div>
+            <div class="field">
+              <label for="photoY">Vertical crop</label>
+              <input id="photoY" type="range" min="0" max="100" value="50" />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Border colour</label>
+            <div class="swatches" id="photoColourSwatches"></div>
+          </div>
+
+          <div class="field">
+            <label for="borderWidth">Border width</label>
+            <input id="borderWidth" type="range" min="0" max="42" value="16" />
+          </div>
+        </div>
+      </section>
+
+      <section class="panel preview-panel">
+        <h2>Preview</h2>
+        <div class="canvas-wrap">
+          <canvas id="previewCanvas" width="500" height="500"></canvas>
+        </div>
+        <button id="downloadBtn" class="download-button">Download PNG</button>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
