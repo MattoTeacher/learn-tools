@@ -8,6 +8,21 @@ export function drawTheme(ctx, themeId, base, w, h) {
   const accent = mix(base, '#D0006F', .32);
   const cool = mix(base, '#487A7B', .42);
 
+
+  if (themeId === 'soft-flare') {
+    ctx.fillStyle = base; ctx.fillRect(0, 0, w, h);
+    const g = ctx.createRadialGradient(w*.20, h*.20, w*.04, w*.20, h*.20, w*.62);
+    g.addColorStop(0, 'rgba(255,255,255,.34)');
+    g.addColorStop(.42, 'rgba(255,255,255,.14)');
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = 'rgba(255,255,255,.12)';
+    ctx.beginPath(); ctx.arc(w*.94, h*.94, w*.30, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(0,0,0,.08)';
+    ctx.beginPath(); ctx.arc(w*.12, h*1.02, w*.38, 0, Math.PI*2); ctx.fill();
+    return;
+  }
+
   if (themeId === 'classic') {
     ctx.fillStyle = base; ctx.fillRect(0, 0, w, h);
     const g = ctx.createRadialGradient(w*.5, h*.45, 20, w*.5, h*.45, w*.55);

@@ -1,10 +1,47 @@
 [
-  { "id": "classic", "name": "Classic", "description": "Clean colour field with a soft centre highlight." },
-  { "id": "aurora", "name": "Aurora", "description": "Soft flowing colour blends using related tones." },
-  { "id": "paper", "name": "Paper Layers", "description": "Layered curved panels for a modern card feel." },
-  { "id": "spotlight", "name": "Spotlight", "description": "Directional light from the corner with subtle depth." },
-  { "id": "halo", "name": "Halo", "description": "A soft glow behind the icon for emphasis." },
-  { "id": "mesh", "name": "Mesh", "description": "Gentle blended colour variation across the image." },
-  { "id": "watermark", "name": "Watermark", "description": "A faint oversized version of the icon in the background." },
-  { "id": "topography", "name": "Topography", "description": "Subtle contour lines for added texture." }
+  {
+    "id": "classic",
+    "name": "Classic",
+    "description": "Clean colour field with a soft centre highlight."
+  },
+  {
+    "id": "soft-flare",
+    "name": "Soft Flare",
+    "description": "The original soft highlight style with a gentle corner flare."
+  },
+  {
+    "id": "aurora",
+    "name": "Aurora",
+    "description": "Soft flowing colour blends using related tones."
+  },
+  {
+    "id": "paper",
+    "name": "Paper Layers",
+    "description": "Layered curved panels for a modern card feel."
+  },
+  {
+    "id": "spotlight",
+    "name": "Spotlight",
+    "description": "Directional light from the corner with subtle depth."
+  },
+  {
+    "id": "halo",
+    "name": "Halo",
+    "description": "A soft glow behind the icon for emphasis."
+  },
+  {
+    "id": "mesh",
+    "name": "Mesh",
+    "description": "Gentle blended colour variation across the image."
+  },
+  {
+    "id": "watermark",
+    "name": "Watermark",
+    "description": "A faint oversized version of the icon in the background."
+  },
+  {
+    "id": "topography",
+    "name": "Topography",
+    "description": "Subtle contour lines for added texture."
+  }
 ]
