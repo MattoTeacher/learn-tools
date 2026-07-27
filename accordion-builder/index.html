@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Accordion Builder — LEARN Tools</title>
+<style>
+  :root {
+    --jade: #487A7B;
+    --ink: #1a1a1a;
+    --paper: #ffffff;
+    --panel: #f6f6f4;
+    --line: #d8d8d4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Source Sans 3', Arial, sans-serif;
+    color: var(--ink);
+    background: var(--panel);
+    margin: 0;
+    line-height: 1.5;
+  }
+  header {
+    background: var(--jade);
+    color: #fff;
+    padding: 22px 28px;
+  }
+  header h1 { font-family: 'Crimson Pro', Georgia, serif; margin: 0 0 4px; font-size: 1.6em; }
+  header p { margin: 0; opacity: 0.9; font-size: 0.95em; }
+
+  .wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    padding: 24px;
+    max-width: 1300px;
+    margin: 0 auto;
+  }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 18px;
+    margin-bottom: 18px;
+  }
+  .card h2 {
+    font-family: 'Crimson Pro', Georgia, serif;
+    margin: 0 0 12px;
+    font-size: 1.25em;
+    border-bottom: 2px solid var(--jade);
+    padding-bottom: 6px;
+  }
+  label { display: block; font-weight: 600; font-size: 0.85em; margin-bottom: 4px; }
+  select, input[type=text] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: 0.95em;
+    margin-bottom: 12px;
+  }
+
+  .theme-swatches { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+  .swatch {
+    width: 34px; height: 34px; border-radius: 6px; cursor: pointer;
+    border: 2px solid transparent; position: relative;
+  }
+  .swatch.active { border-color: var(--ink); }
+  .swatch-name { font-size: 0.7em; text-align: center; margin-top: 2px; color: #555; }
+
+  .item-block {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 12px;
+    margin-bottom: 12px;
+    background: #fafafa;
+  }
+  .item-block .item-head {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;
+  }
+  .item-block .item-head strong { font-size: 0.85em; color: #666; }
+  .remove-btn {
+    background: none; border: none; color: #a50034; cursor: pointer; font-size: 0.85em; font-weight: 600;
+  }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+  .toolbar button {
+    background: #fff; border: 1px solid var(--line); border-radius: 4px;
+    padding: 5px 9px; cursor: pointer; font-size: 0.85em;
+  }
+  .toolbar button:hover { background: #eee; }
+  .toolbar button.active { background: var(--jade); color: #fff; border-color: var(--jade); }
+  .rte {
+    border: 1px solid var(--line); border-radius: 5px; min-height: 70px;
+    padding: 8px 10px; background: #fff; font-size: 0.9em;
+  }
+  .rte:focus { outline: 2px solid var(--jade); outline-offset: 1px; }
+  .rte h3, .rte h4 { font-family: 'Crimson Pro', Georgia, serif; margin: 4px 0; }
+  .rte:empty:before { content: attr(data-placeholder); color: #999; pointer-events: none; }
+
+  .add-btn, .action-btn {
+    background: var(--jade); color: #fff; border: none; border-radius: 6px;
+    padding: 10px 16px; font-weight: 600; cursor: pointer; font-size: 0.95em;
+  }
+  .add-btn { width: 100%; }
+  .add-btn:hover, .action-btn:hover { background: #355a5b; }
+  .action-btn.secondary { background: #555; }
+  .action-btn.secondary:hover { background: #333; }
+  .action-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+
+  .warn {
+    background: #fff4e5; border-left: 4px solid #a50034; padding: 8px 12px;
+    font-size: 0.85em; margin-top: 10px; border-radius: 4px; display: none;
+  }
+  .warn.show { display: block; }
+
+  #codeOut {
+    width: 100%; height: 220px; font-family: 'Courier New', monospace; font-size: 0.8em;
+    padding: 10px; border: 1px solid var(--line); border-radius: 5px; resize: vertical;
+  }
+  .copied-msg { color: #154734; font-weight: 600; font-size: 0.85em; margin-top: 6px; display: none; }
+  .copied-msg.show { display: inline; }
+
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    align-items: center; justify-content: center; z-index: 100;
+  }
+  .modal-backdrop.show { display: flex; }
+  .modal-box {
+    background: #fff; border-radius: 8px; padding: 20px; width: 100%; max-width: 380px;
+  }
+  .modal-box h3 { font-family: 'Crimson Pro', Georgia, serif; margin: 0 0 12px; }
+  .modal-box label { margin-top: 8px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  .modal-actions button { padding: 8px 14px; border-radius: 5px; border: 1px solid var(--line); cursor: pointer; font-weight: 600; }
+  .modal-actions .primary { background: var(--jade); color: #fff; border-color: var(--jade); }
+
+  /* live preview accordion styling */
+  #previewRoot .lt-acc-item { border: 1px solid var(--acc-border, var(--jade)); border-radius: 6px; margin-bottom: 8px; overflow: hidden; }
+  #previewRoot .lt-acc-trigger {
+    width: 100%; text-align: left; border: none; padding: 10px 14px;
+    font-size: 0.95em; font-weight: 600; cursor: pointer; position: relative; font-family: inherit;
+    background: var(--acc-base, var(--jade)); color: var(--acc-fg, #fff);
+  }
+  #previewRoot .lt-acc-trigger::after { content: "+"; position: absolute; right: 14px; }
+  #previewRoot .lt-acc-trigger.open::after { content: "–"; }
+  #previewRoot .lt-acc-panel { background: #fff; padding: 12px 14px; }
+  #previewRoot .lt-acc-panel a { color: var(--acc-base, var(--jade)); font-weight: 600; }
+  #previewRoot .lt-acc-panel ul, #previewRoot .lt-acc-panel ol { margin: 0 0 8px 20px; padding: 0; }
+  #previewRoot .lt-acc-panel p { margin: 0 0 8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Accordion Builder</h1>
+  <p>Build a themed accordion, then copy the code into an Ultra HTML block — or download a plain handout version.</p>
+</header>
+
+<div class="wrap">
+
+  <!-- LEFT: CONTROLS -->
+  <div>
+    <div class="card">
+      <h2>1. Colour theme</h2>
+      <div class="theme-swatches" id="swatches"></div>
+    </div>
+
+    <div class="card">
+      <h2>2. Accordion items</h2>
+      <div id="itemsContainer"></div>
+      <button class="add-btn" id="addItemBtn">+ Add accordion item</button>
+    </div>
+
+    <div class="card">
+      <h2>3. Get your content</h2>
+      <div class="action-row">
+        <button class="action-btn" id="generateBtn">Generate HTML for Ultra</button>
+        <button class="action-btn secondary" id="downloadDocBtn">Download handout (.doc)</button>
+      </div>
+      <div style="margin-top:14px;">
+        <label for="codeOut">Copy this into an Ultra HTML block</label>
+        <textarea id="codeOut" readonly placeholder="Click &quot;Generate HTML for Ultra&quot; above once your items are ready."></textarea>
+        <div>
+          <button class="action-btn" id="copyBtn" style="margin-top:8px;">Copy to clipboard</button>
+          <span class="copied-msg" id="copiedMsg">Copied!</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: PREVIEW -->
+  <div>
+    <div class="card">
+      <h2>Live preview</h2>
+      <div id="previewRoot"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="linkModal">
+  <div class="modal-box">
+    <h3>Insert link</h3>
+    <label for="linkTextInput">Text to display</label>
+    <input type="text" id="linkTextInput" placeholder="e.g. library referencing guide">
+    <label for="linkUrlInput">Link URL</label>
+    <input type="text" id="linkUrlInput" placeholder="https://">
+    <div class="modal-actions">
+      <button type="button" id="linkCancelBtn">Cancel</button>
+      <button type="button" class="primary" id="linkInsertBtn">Insert link</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- Palette ----------
+const PALETTE = [
+  { key: 'blue-bright', name: 'Bright blue', base: '#007288', hover: '#004755', active: '#002931', borderHover: '#003f4b', borderFocus: '#000708' },
+  { key: 'blue-muted', name: 'Muted blue', base: '#004f71', hover: '#002b3e', active: '#00121a', borderHover: '#002434', borderFocus: '#000000' },
+  { key: 'blue-university', name: 'University blue', base: '#041E42', hover: '#010812', active: '#000000', borderHover: '#010408', borderFocus: '#000000' },
+  { key: 'brown', name: 'Brown', base: '#6d4f47', hover: '#4e3933', active: '#382925', borderHover: '#48342f', borderFocus: '#201715' },
+  { key: 'burgundy', name: 'Burgundy', base: '#a50034', hover: '#720024', active: '#4e0019', borderHover: '#680021', borderFocus: '#26000c' },
+  { key: 'green-dark', name: 'Green dark', base: '#154734', hover: '#092017', active: '#010403', borderHover: '#071811', borderFocus: '#000000' },
+  { key: 'grey', name: 'Grey', base: '#333f48', hover: '#1e252a', active: '#0f1315', borderHover: '#1a2024', borderFocus: '#000000' },
+  { key: 'jade', name: 'Jade', base: '#487A7B', hover: '#355a5b', active: '#284444', borderHover: '#315454', borderFocus: '#192a2b' },
+  { key: 'pink', name: 'Pink', base: '#D0006F', hover: '#9d0054', active: '#790041', borderHover: '#93004e', borderFocus: '#51002b' },
+  { key: 'purple', name: 'Purple', base: '#830065', hover: '#50003e', active: '#2c0022', borderHover: '#460036', borderFocus: '#030003' },
+  { key: 'red', name: 'Red', base: '#d50032', hover: '#a20026', active: '#7e001e', borderHover: '#980024', borderFocus: '#560014' }
+];
+let currentTheme = PALETTE.find(p => p.key === 'jade');
+
+// ---------- Link modal ----------
+const linkModal = document.getElementById('linkModal');
+const linkTextInput = document.getElementById('linkTextInput');
+const linkUrlInput = document.getElementById('linkUrlInput');
+let linkModalResolve = null;
+
+function openLinkModal(prefillText) {
+  linkTextInput.value = prefillText || '';
+  linkUrlInput.value = 'https://';
+  linkModal.classList.add('show');
+  (prefillText ? linkUrlInput : linkTextInput).focus();
+  return new Promise(resolve => { linkModalResolve = resolve; });
+}
+function closeLinkModal(result) {
+  linkModal.classList.remove('show');
+  if (linkModalResolve) { linkModalResolve(result); linkModalResolve = null; }
+}
+document.getElementById('linkInsertBtn').addEventListener('click', () => {
+  const text = linkTextInput.value.trim();
+  const url = linkUrlInput.value.trim();
+  if (!text || !url) return;
+  closeLinkModal({ text, url });
+});
+document.getElementById('linkCancelBtn').addEventListener('click', () => closeLinkModal(null));
+linkModal.addEventListener('click', (e) => { if (e.target === linkModal) closeLinkModal(null); });
+[linkTextInput, linkUrlInput].forEach(el => el.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('linkInsertBtn').click(); }
+  if (e.key === 'Escape') closeLinkModal(null);
+}));
+
+// ---------- State ----------
+let items = [];
+let itemCounter = 0;
+
+function makeItem(title) {
+  itemCounter++;
+  return { id: 'itm' + itemCounter, title: title || '', html: '' };
+}
+items.push(makeItem('Why does referencing matter?'));
+
+// ---------- Swatches ----------
+const swatchesEl = document.getElementById('swatches');
+PALETTE.forEach(p => {
+  const wrap = document.createElement('div');
+  wrap.style.textAlign = 'center';
+  const sw = document.createElement('div');
+  sw.className = 'swatch' + (p.key === currentTheme.key ? ' active' : '');
+  sw.style.background = p.base;
+  sw.title = p.name;
+  sw.dataset.key = p.key;
+  sw.addEventListener('click', () => {
+    currentTheme = p;
+    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    renderPreview();
+  });
+  const label = document.createElement('div');
+  label.className = 'swatch-name';
+  label.textContent = p.name;
+  wrap.appendChild(sw);
+  wrap.appendChild(label);
+  swatchesEl.appendChild(wrap);
+});
+
+// ---------- Item editor rendering ----------
+const itemsContainer = document.getElementById('itemsContainer');
+
+function renderItems() {
+  itemsContainer.innerHTML = '';
+  items.forEach((item, idx) => {
+    const block = document.createElement('div');
+    block.className = 'item-block';
+
+    const head = document.createElement('div');
+    head.className = 'item-head';
+    head.innerHTML = `<strong>Item ${idx + 1}</strong>`;
+    if (items.length > 1) {
+      const rm = document.createElement('button');
+      rm.className = 'remove-btn';
+      rm.textContent = 'Remove';
+      rm.addEventListener('click', () => { items.splice(idx, 1); renderItems(); renderPreview(); });
+      head.appendChild(rm);
+    }
+    block.appendChild(head);
+
+    const titleLabel = document.createElement('label');
+    titleLabel.textContent = 'Header text (what shows when closed)';
+    block.appendChild(titleLabel);
+
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.value = item.title;
+    titleInput.addEventListener('input', () => { item.title = titleInput.value; renderPreview(); });
+    block.appendChild(titleInput);
+
+    const contentLabel = document.createElement('label');
+    contentLabel.textContent = 'Panel content';
+    block.appendChild(contentLabel);
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'toolbar';
+    const tools = [
+      ['Bold', 'bold', () => document.execCommand('bold')],
+      ['Italic', 'italic', () => document.execCommand('italic')],
+      ['Heading', 'formatBlock:h4', () => document.execCommand('formatBlock', false, 'H4')],
+      ['Paragraph', 'formatBlock:p', () => document.execCommand('formatBlock', false, 'P')],
+      ['• List', 'insertUnorderedList', () => document.execCommand('insertUnorderedList')],
+      ['1. List', 'insertOrderedList', () => document.execCommand('insertOrderedList')],
+      ['Link', null, () => insertLink()]
+    ];
+    const toolButtons = [];
+    tools.forEach(([label, cmd, fn]) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = label;
+      if (cmd) btn.dataset.command = cmd;
+      btn.addEventListener('mousedown', (e) => {
+        e.preventDefault(); rte.focus(); fn(); item.html = rte.innerHTML; renderPreview();
+        updateToolbarState(toolbar, toolButtons);
+      });
+      toolbar.appendChild(btn);
+      toolButtons.push(btn);
+    });
+    block.appendChild(toolbar);
+
+    const rte = document.createElement('div');
+    rte.className = 'rte';
+    rte.contentEditable = 'true';
+    rte.setAttribute('data-placeholder', 'Type panel content here…');
+    rte.innerHTML = item.html || '';
+    rte.addEventListener('input', () => { item.html = rte.innerHTML; renderPreview(); });
+    rte.addEventListener('keyup', () => updateToolbarState(toolbar, toolButtons));
+    rte.addEventListener('mouseup', () => updateToolbarState(toolbar, toolButtons));
+    rte.addEventListener('focus', () => updateToolbarState(toolbar, toolButtons));
+
+    function insertLink() {
+      const selectedText = window.getSelection().toString();
+      openLinkModal(selectedText).then(result => {
+        if (!result) return;
+        rte.focus();
+        const safeText = result.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const safeUrl = result.url.replace(/"/g,'&quot;');
+        document.execCommand('insertHTML', false, `<a href="${safeUrl}">${safeText}</a>`);
+        item.html = rte.innerHTML;
+        renderPreview();
+      });
+    }
+
+    block.appendChild(rte);
+    itemsContainer.appendChild(block);
+  });
+}
+
+function updateToolbarState(toolbar, toolButtons) {
+  toolButtons.forEach(btn => {
+    const cmd = btn.dataset.command;
+    if (!cmd) { btn.classList.remove('active'); return; }
+    let isActive = false;
+    if (cmd === 'formatBlock:h4' || cmd === 'formatBlock:p') {
+      const current = (document.queryCommandValue('formatBlock') || '').toLowerCase();
+      isActive = cmd === 'formatBlock:' + current;
+    } else {
+      try { isActive = document.queryCommandState(cmd); } catch (e) { isActive = false; }
+    }
+    btn.classList.toggle('active', isActive);
+  });
+}
+
+document.getElementById('addItemBtn').addEventListener('click', () => {
+  items.push(makeItem(''));
+  renderItems();
+  renderPreview();
+});
+
+// ---------- Live preview ----------
+const previewRoot = document.getElementById('previewRoot');
+
+function renderPreview() {
+  previewRoot.style.setProperty('--acc-base', currentTheme.base);
+  previewRoot.style.setProperty('--acc-fg', '#ffffff');
+  previewRoot.style.setProperty('--acc-border', currentTheme.base);
+  previewRoot.innerHTML = '';
+  items.forEach((item, idx) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'lt-acc-item';
+    const trig = document.createElement('button');
+    trig.className = 'lt-acc-trigger' + (idx === 0 ? ' open' : '');
+    trig.textContent = item.title || '(untitled item)';
+    const panel = document.createElement('div');
+    panel.className = 'lt-acc-panel';
+    panel.style.display = idx === 0 ? 'block' : 'none';
+    panel.innerHTML = item.html || '<p><em>Empty</em></p>';
+    trig.addEventListener('click', () => {
+      const open = panel.style.display === 'block';
+      previewRoot.querySelectorAll('.lt-acc-panel').forEach(p => p.style.display = 'none');
+      previewRoot.querySelectorAll('.lt-acc-trigger').forEach(t => t.classList.remove('open'));
+      if (!open) { panel.style.display = 'block'; trig.classList.add('open'); }
+    });
+    wrap.appendChild(trig);
+    wrap.appendChild(panel);
+    previewRoot.appendChild(wrap);
+  });
+}
+
+renderItems();
+renderPreview();
+
+// ---------- Generate embed code ----------
+function generateHtml() {
+  const uid = 'ltacc' + Math.random().toString(36).slice(2, 9);
+  const t = currentTheme;
+  let itemsHtml = '';
+  items.forEach((item, idx) => {
+    itemsHtml += `
+  <div class="lt-acc-item">
+    <button class="lt-acc-trigger${idx === 0 ? ' open' : ''}">${escapeHtml(item.title || 'Untitled')}</button>
+    <div class="lt-acc-panel" style="${idx === 0 ? '' : 'display:none;'}">
+      <div class="lt-acc-panel-inner">${item.html || '<p></p>'}</div>
+    </div>
+  </div>`;
+  });
+
+  return `<div class="${uid}">
+<style>
+.${uid} { font-family: 'Source Sans 3', Arial, sans-serif; max-width: 700px; }
+.${uid} .lt-acc-item { border: 1px solid ${t.base}; border-radius: 6px; margin-bottom: 8px; overflow: hidden; }
+.${uid} .lt-acc-trigger { width: 100%; text-align: left; background: ${t.base}; color: #ffffff; border: none; padding: 10px 14px; font-size: 0.95em; font-weight: 600; cursor: pointer; position: relative; font-family: inherit; }
+.${uid} .lt-acc-trigger:hover { background: ${t.hover}; }
+.${uid} .lt-acc-trigger::after { content: "+"; position: absolute; right: 14px; }
+.${uid} .lt-acc-trigger.open::after { content: "\\2013"; }
+.${uid} .lt-acc-panel-inner { padding: 12px 14px; color: #1a1a1a; background: #fff; }
+.${uid} .lt-acc-panel-inner a { color: ${t.base}; font-weight: 600; }
+.${uid} .lt-acc-panel-inner ul, .${uid} .lt-acc-panel-inner ol { margin: 0 0 8px 20px; padding: 0; }
+.${uid} .lt-acc-panel-inner p { margin: 0 0 8px; }
+.${uid} .lt-acc-panel-inner img { max-width: 100%; border-radius: 4px; }
+</style>
+${itemsHtml}
+</div>
+<script>
+(function() {
+  var root = document.querySelector('.${uid}');
+  if (!root) return;
+  var triggers = root.querySelectorAll('.lt-acc-trigger');
+  triggers.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var panel = btn.nextElementSibling;
+      var isOpen = btn.classList.contains('open');
+      triggers.forEach(function(other) {
+        other.classList.remove('open');
+        other.nextElementSibling.style.display = 'none';
+      });
+      if (!isOpen) { btn.classList.add('open'); panel.style.display = 'block'; }
+    });
+  });
+})();
+<\/script>`;
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+document.getElementById('generateBtn').addEventListener('click', () => {
+  document.getElementById('codeOut').value = generateHtml();
+});
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const out = document.getElementById('codeOut');
+  if (!out.value) return;
+  out.select();
+  navigator.clipboard.writeText(out.value).then(() => {
+    const msg = document.getElementById('copiedMsg');
+    msg.classList.add('show');
+    setTimeout(() => msg.classList.remove('show'), 1800);
+  });
+});
+
+// ---------- Word handout export ----------
+document.getElementById('downloadDocBtn').addEventListener('click', () => {
+  let body = '<h1 style="font-family:Georgia,serif;">Handout</h1>';
+  items.forEach(item => {
+    body += `<h2 style="font-family:Georgia,serif;color:${currentTheme.base};">${escapeHtml(item.title || 'Untitled')}</h2>`;
+    body += item.html || '<p></p>';
+  });
+  const docHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Handout</title></head>
+<body style="font-family:Calibri,Arial,sans-serif;">${body}</body></html>`;
+  const blob = new Blob(['\ufeff', docHtml], { type: 'application/msword' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'accordion-handout.doc';
+  link.click();
+});
+</script>
+
+</body>
+</html>
