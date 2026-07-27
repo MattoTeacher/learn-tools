@@ -88,7 +88,7 @@
   .toolbar { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
   .toolbar button {
     background: #fff; border: 1px solid var(--line); border-radius: 4px;
-    padding: 5px 9px; cursor: pointer; font-size: 0.85em;
+    padding: 5px 9px; cursor: pointer; font-size: 0.95em; min-width: 32px; text-align: center;
   }
   .toolbar button:hover { background: #eee; }
   .toolbar button.active { background: var(--jade); color: #fff; border-color: var(--jade); }
@@ -333,19 +333,21 @@ function renderItems() {
     const toolbar = document.createElement('div');
     toolbar.className = 'toolbar';
     const tools = [
-      ['Bold', 'bold', () => document.execCommand('bold')],
-      ['Italic', 'italic', () => document.execCommand('italic')],
-      ['Heading', 'formatBlock:h4', () => document.execCommand('formatBlock', false, 'H4')],
-      ['Paragraph', 'formatBlock:p', () => document.execCommand('formatBlock', false, 'P')],
-      ['• List', 'insertUnorderedList', () => document.execCommand('insertUnorderedList')],
-      ['1. List', 'insertOrderedList', () => document.execCommand('insertOrderedList')],
-      ['Link', null, () => insertLink()]
+      ['<strong>B</strong>', 'Bold', 'bold', () => document.execCommand('bold')],
+      ['<em>I</em>', 'Italic', 'italic', () => document.execCommand('italic')],
+      ['H', 'Heading', 'formatBlock:h4', () => document.execCommand('formatBlock', false, 'H4')],
+      ['¶', 'Paragraph', 'formatBlock:p', () => document.execCommand('formatBlock', false, 'P')],
+      ['•', 'Bulleted list', 'insertUnorderedList', () => document.execCommand('insertUnorderedList')],
+      ['1.', 'Numbered list', 'insertOrderedList', () => document.execCommand('insertOrderedList')],
+      ['🔗', 'Insert link', null, () => insertLink()]
     ];
     const toolButtons = [];
-    tools.forEach(([label, cmd, fn]) => {
+    tools.forEach(([glyph, tooltip, cmd, fn]) => {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.textContent = label;
+      btn.innerHTML = glyph;
+      btn.title = tooltip;
+      btn.setAttribute('aria-label', tooltip);
       if (cmd) btn.dataset.command = cmd;
       btn.addEventListener('mousedown', (e) => {
         e.preventDefault(); rte.focus(); fn(); item.html = rte.innerHTML; renderPreview();
