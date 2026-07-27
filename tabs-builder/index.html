@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tabs Builder — LEARN Tools</title>
+<style>
+  :root {
+    --brand: #6d4f47;
+    --ink: #1a1a1a;
+    --paper: #ffffff;
+    --panel: #f6f6f4;
+    --line: #d8d8d4;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Source Sans 3', Arial, sans-serif;
+    color: var(--ink);
+    background: var(--panel);
+    margin: 0;
+    line-height: 1.5;
+  }
+  header { background: var(--brand); color: #fff; padding: 22px 28px; }
+  header h1 { font-family: 'Crimson Pro', Georgia, serif; margin: 0 0 4px; font-size: 1.6em; }
+  header p { margin: 0; opacity: 0.9; font-size: 0.95em; }
+
+  .wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; padding: 24px; max-width: 1300px; margin: 0 auto; }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+
+  .card { background: var(--paper); border: 1px solid var(--line); border-radius: 8px; padding: 18px; margin-bottom: 18px; }
+  .card h2 { font-family: 'Crimson Pro', Georgia, serif; margin: 0 0 12px; font-size: 1.25em; border-bottom: 2px solid var(--brand); padding-bottom: 6px; }
+  label { display: block; font-weight: 600; font-size: 0.85em; margin-bottom: 4px; }
+  select, input[type=text] { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; font-family: inherit; font-size: 0.95em; margin-bottom: 12px; }
+
+  .theme-swatches { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+  .swatch { width: 34px; height: 34px; border-radius: 6px; cursor: pointer; border: 2px solid transparent; }
+  .swatch.active { border-color: var(--ink); }
+  .swatch-name { font-size: 0.7em; text-align: center; margin-top: 2px; color: #555; }
+
+  .item-block { border: 1px solid var(--line); border-radius: 6px; padding: 12px; margin-bottom: 12px; background: #fafafa; }
+  .item-block .item-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+  .item-block .item-head strong { font-size: 0.85em; color: #666; }
+  .remove-btn { background: none; border: none; color: #a50034; cursor: pointer; font-size: 0.85em; font-weight: 600; }
+
+  .toolbar { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+  .toolbar button { background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 5px 9px; cursor: pointer; font-size: 0.95em; min-width: 32px; text-align: center; }
+  .toolbar button:hover { background: #eee; }
+  .toolbar button.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+
+  .rte { border: 1px solid var(--line); border-radius: 5px; min-height: 70px; padding: 8px 10px; background: #fff; font-size: 0.9em; }
+  .rte:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
+  .rte h3, .rte h4 { font-family: 'Crimson Pro', Georgia, serif; margin: 4px 0; }
+  .rte:empty:before { content: attr(data-placeholder); color: #999; pointer-events: none; }
+
+  .add-btn, .action-btn { background: var(--brand); color: #fff; border: none; border-radius: 6px; padding: 10px 16px; font-weight: 600; cursor: pointer; font-size: 0.95em; }
+  .add-btn { width: 100%; }
+  .add-btn:hover, .action-btn:hover { background: #4e3933; }
+  .action-btn.secondary { background: #555; }
+  .action-btn.secondary:hover { background: #333; }
+  .action-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+
+  #codeOut { width: 100%; height: 220px; font-family: 'Courier New', monospace; font-size: 0.8em; padding: 10px; border: 1px solid var(--line); border-radius: 5px; resize: vertical; }
+  .copied-msg { color: #154734; font-weight: 600; font-size: 0.85em; margin-top: 6px; display: none; }
+  .copied-msg.show { display: inline; }
+
+  .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); align-items: center; justify-content: center; z-index: 100; }
+  .modal-backdrop.show { display: flex; }
+  .modal-box { background: #fff; border-radius: 8px; padding: 20px; width: 100%; max-width: 380px; }
+  .modal-box h3 { font-family: 'Crimson Pro', Georgia, serif; margin: 0 0 12px; }
+  .modal-box label { margin-top: 8px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  .modal-actions button { padding: 8px 14px; border-radius: 5px; border: 1px solid var(--line); cursor: pointer; font-weight: 600; }
+  .modal-actions .primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+
+  /* live preview tabs */
+  #previewRoot .lt-tabs-nav { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 2px solid var(--tabs-base, var(--brand)); }
+  #previewRoot .lt-tabs-btn { font-family: inherit; font-size: 0.9em; font-weight: 600; color: var(--tabs-base, var(--brand)); background: #f4f4f4; border: 1px solid var(--line); border-bottom: none; border-radius: 6px 6px 0 0; padding: 8px 14px; cursor: pointer; position: relative; top: 2px; }
+  #previewRoot .lt-tabs-btn.lt-active { background: var(--tabs-base, var(--brand)); color: #fff; border-color: var(--tabs-base, var(--brand)); top: 0; }
+  #previewRoot .lt-tabs-panels { border: 1px solid var(--tabs-base, var(--brand)); border-top: none; border-radius: 0 0 6px 6px; padding: 14px; font-size: 0.95em; }
+  #previewRoot .lt-tabs-panels a { color: var(--tabs-base, var(--brand)); font-weight: 600; }
+  #previewRoot .lt-tabs-panels ul, #previewRoot .lt-tabs-panels ol { margin: 0 0 8px 20px; padding: 0; }
+  #previewRoot .lt-tabs-panels p { margin: 0 0 8px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Tabs Builder</h1>
+  <p>Build a themed tab set, then copy the code into an Ultra HTML block — or download a plain handout version.</p>
+</header>
+
+<div class="wrap">
+
+  <!-- LEFT: CONTROLS -->
+  <div>
+    <div class="card">
+      <h2>1. Colour theme</h2>
+      <div class="theme-swatches" id="swatches"></div>
+    </div>
+
+    <div class="card">
+      <h2>2. Tabs</h2>
+      <div id="itemsContainer"></div>
+      <button class="add-btn" id="addItemBtn">+ Add tab</button>
+    </div>
+
+    <div class="card">
+      <h2>3. Get your content</h2>
+      <div class="action-row">
+        <button class="action-btn" id="generateBtn">Generate HTML for Ultra</button>
+        <button class="action-btn secondary" id="downloadDocBtn">Download handout (.doc)</button>
+      </div>
+      <div style="margin-top:14px;">
+        <label for="codeOut">Copy this into an Ultra HTML block</label>
+        <textarea id="codeOut" readonly placeholder="Click &quot;Generate HTML for Ultra&quot; above once your tabs are ready."></textarea>
+        <div>
+          <button class="action-btn" id="copyBtn" style="margin-top:8px;">Copy to clipboard</button>
+          <span class="copied-msg" id="copiedMsg">Copied!</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: PREVIEW -->
+  <div>
+    <div class="card">
+      <h2>Live preview</h2>
+      <div id="previewRoot"></div>
+    </div>
+  </div>
+
+</div>
+
+<div class="modal-backdrop" id="linkModal">
+  <div class="modal-box">
+    <h3>Insert link</h3>
+    <label for="linkTextInput">Text to display</label>
+    <input type="text" id="linkTextInput" placeholder="e.g. library referencing guide">
+    <label for="linkUrlInput">Link URL</label>
+    <input type="text" id="linkUrlInput" placeholder="https://">
+    <div class="modal-actions">
+      <button type="button" id="linkCancelBtn">Cancel</button>
+      <button type="button" class="primary" id="linkInsertBtn">Insert link</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---------- Palette ----------
+const PALETTE = [
+  { key: 'blue-bright', name: 'Bright blue', base: '#007288', hover: '#004755' },
+  { key: 'blue-muted', name: 'Muted blue', base: '#004f71', hover: '#002b3e' },
+  { key: 'blue-university', name: 'University blue', base: '#041E42', hover: '#010812' },
+  { key: 'brown', name: 'Brown', base: '#6d4f47', hover: '#4e3933' },
+  { key: 'burgundy', name: 'Burgundy', base: '#a50034', hover: '#720024' },
+  { key: 'green-dark', name: 'Green dark', base: '#154734', hover: '#092017' },
+  { key: 'grey', name: 'Grey', base: '#333f48', hover: '#1e252a' },
+  { key: 'jade', name: 'Jade', base: '#487A7B', hover: '#355a5b' },
+  { key: 'pink', name: 'Pink', base: '#D0006F', hover: '#9d0054' },
+  { key: 'purple', name: 'Purple', base: '#830065', hover: '#50003e' },
+  { key: 'red', name: 'Red', base: '#d50032', hover: '#a20026' }
+];
+let currentTheme = PALETTE.find(p => p.key === 'brown');
+
+// ---------- Link modal ----------
+const linkModal = document.getElementById('linkModal');
+const linkTextInput = document.getElementById('linkTextInput');
+const linkUrlInput = document.getElementById('linkUrlInput');
+let linkModalResolve = null;
+
+function openLinkModal(prefillText) {
+  linkTextInput.value = prefillText || '';
+  linkUrlInput.value = 'https://';
+  linkModal.classList.add('show');
+  (prefillText ? linkUrlInput : linkTextInput).focus();
+  return new Promise(resolve => { linkModalResolve = resolve; });
+}
+function closeLinkModal(result) {
+  linkModal.classList.remove('show');
+  if (linkModalResolve) { linkModalResolve(result); linkModalResolve = null; }
+}
+document.getElementById('linkInsertBtn').addEventListener('click', () => {
+  const text = linkTextInput.value.trim();
+  const url = linkUrlInput.value.trim();
+  if (!text || !url) return;
+  closeLinkModal({ text, url });
+});
+document.getElementById('linkCancelBtn').addEventListener('click', () => closeLinkModal(null));
+linkModal.addEventListener('click', (e) => { if (e.target === linkModal) closeLinkModal(null); });
+[linkTextInput, linkUrlInput].forEach(el => el.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); document.getElementById('linkInsertBtn').click(); }
+  if (e.key === 'Escape') closeLinkModal(null);
+}));
+
+// ---------- State ----------
+let items = [];
+let itemCounter = 0;
+function makeItem(title) { itemCounter++; return { id: 'itm' + itemCounter, title: title || '', html: '' }; }
+items.push(makeItem('Overview'));
+items.push(makeItem('How to reference'));
+
+// ---------- Swatches ----------
+const swatchesEl = document.getElementById('swatches');
+PALETTE.forEach(p => {
+  const wrap = document.createElement('div');
+  wrap.style.textAlign = 'center';
+  const sw = document.createElement('div');
+  sw.className = 'swatch' + (p.key === currentTheme.key ? ' active' : '');
+  sw.style.background = p.base;
+  sw.title = p.name;
+  sw.addEventListener('click', () => {
+    currentTheme = p;
+    document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+    sw.classList.add('active');
+    renderPreview();
+  });
+  const label = document.createElement('div');
+  label.className = 'swatch-name';
+  label.textContent = p.name;
+  wrap.appendChild(sw);
+  wrap.appendChild(label);
+  swatchesEl.appendChild(wrap);
+});
+
+// ---------- Item editor rendering ----------
+const itemsContainer = document.getElementById('itemsContainer');
+
+function updateToolbarState(toolbar, toolButtons) {
+  toolButtons.forEach(btn => {
+    const cmd = btn.dataset.command;
+    if (!cmd) { btn.classList.remove('active'); return; }
+    let isActive = false;
+    if (cmd === 'formatBlock:h4' || cmd === 'formatBlock:p') {
+      const current = (document.queryCommandValue('formatBlock') || '').toLowerCase();
+      isActive = cmd === 'formatBlock:' + current;
+    } else {
+      try { isActive = document.queryCommandState(cmd); } catch (e) { isActive = false; }
+    }
+    btn.classList.toggle('active', isActive);
+  });
+}
+
+function renderItems() {
+  itemsContainer.innerHTML = '';
+  items.forEach((item, idx) => {
+    const block = document.createElement('div');
+    block.className = 'item-block';
+
+    const head = document.createElement('div');
+    head.className = 'item-head';
+    head.innerHTML = `<strong>Tab ${idx + 1}</strong>`;
+    if (items.length > 1) {
+      const rm = document.createElement('button');
+      rm.className = 'remove-btn';
+      rm.textContent = 'Remove';
+      rm.addEventListener('click', () => { items.splice(idx, 1); renderItems(); renderPreview(); });
+      head.appendChild(rm);
+    }
+    block.appendChild(head);
+
+    const titleLabel = document.createElement('label');
+    titleLabel.textContent = 'Tab label';
+    block.appendChild(titleLabel);
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.value = item.title;
+    titleInput.addEventListener('input', () => { item.title = titleInput.value; renderPreview(); });
+    block.appendChild(titleInput);
+
+    const contentLabel = document.createElement('label');
+    contentLabel.textContent = 'Tab content';
+    block.appendChild(contentLabel);
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'toolbar';
+    const tools = [
+      ['<strong>B</strong>', 'Bold', 'bold', () => document.execCommand('bold')],
+      ['<em>I</em>', 'Italic', 'italic', () => document.execCommand('italic')],
+      ['H', 'Heading', 'formatBlock:h4', () => document.execCommand('formatBlock', false, 'H4')],
+      ['¶', 'Paragraph', 'formatBlock:p', () => document.execCommand('formatBlock', false, 'P')],
+      ['•', 'Bulleted list', 'insertUnorderedList', () => document.execCommand('insertUnorderedList')],
+      ['1.', 'Numbered list', 'insertOrderedList', () => document.execCommand('insertOrderedList')],
+      ['🔗', 'Insert link', null, () => insertLink()]
+    ];
+    const toolButtons = [];
+    tools.forEach(([glyph, tooltip, cmd, fn]) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.innerHTML = glyph;
+      btn.title = tooltip;
+      btn.setAttribute('aria-label', tooltip);
+      if (cmd) btn.dataset.command = cmd;
+      btn.addEventListener('mousedown', (e) => {
+        e.preventDefault(); rte.focus(); fn(); item.html = rte.innerHTML; renderPreview();
+        updateToolbarState(toolbar, toolButtons);
+      });
+      toolbar.appendChild(btn);
+      toolButtons.push(btn);
+    });
+    block.appendChild(toolbar);
+
+    const rte = document.createElement('div');
+    rte.className = 'rte';
+    rte.contentEditable = 'true';
+    rte.setAttribute('data-placeholder', 'Type tab content here…');
+    rte.innerHTML = item.html || '';
+    rte.addEventListener('input', () => { item.html = rte.innerHTML; renderPreview(); });
+    rte.addEventListener('keyup', () => updateToolbarState(toolbar, toolButtons));
+    rte.addEventListener('mouseup', () => updateToolbarState(toolbar, toolButtons));
+    rte.addEventListener('focus', () => updateToolbarState(toolbar, toolButtons));
+
+    function insertLink() {
+      const selectedText = window.getSelection().toString();
+      openLinkModal(selectedText).then(result => {
+        if (!result) return;
+        rte.focus();
+        const safeText = result.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const safeUrl = result.url.replace(/"/g,'&quot;');
+        document.execCommand('insertHTML', false, `<a href="${safeUrl}">${safeText}</a>`);
+        item.html = rte.innerHTML;
+        renderPreview();
+      });
+    }
+
+    block.appendChild(rte);
+    itemsContainer.appendChild(block);
+  });
+}
+
+document.getElementById('addItemBtn').addEventListener('click', () => {
+  items.push(makeItem(''));
+  renderItems();
+  renderPreview();
+});
+
+// ---------- Live preview ----------
+const previewRoot = document.getElementById('previewRoot');
+
+function renderPreview() {
+  previewRoot.style.setProperty('--tabs-base', currentTheme.base);
+  previewRoot.innerHTML = '';
+  const nav = document.createElement('div');
+  nav.className = 'lt-tabs-nav';
+  const panels = document.createElement('div');
+  panels.className = 'lt-tabs-panels';
+
+  items.forEach((item, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'lt-tabs-btn' + (idx === 0 ? ' lt-active' : '');
+    btn.textContent = item.title || '(untitled tab)';
+    const panel = document.createElement('div');
+    panel.style.display = idx === 0 ? 'block' : 'none';
+    panel.innerHTML = item.html || '<p><em>Empty</em></p>';
+    btn.addEventListener('click', () => {
+      nav.querySelectorAll('.lt-tabs-btn').forEach(b => b.classList.remove('lt-active'));
+      panels.querySelectorAll(':scope > div').forEach(p => p.style.display = 'none');
+      btn.classList.add('lt-active');
+      panel.style.display = 'block';
+    });
+    nav.appendChild(btn);
+    panels.appendChild(panel);
+  });
+
+  previewRoot.appendChild(nav);
+  previewRoot.appendChild(panels);
+}
+
+renderItems();
+renderPreview();
+
+// ---------- Generate embed code ----------
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+function generateHtml() {
+  const uid = 'lttabs' + Math.random().toString(36).slice(2, 9);
+  const t = currentTheme;
+  let btnsHtml = '';
+  let panelsHtml = '';
+  items.forEach((item, idx) => {
+    btnsHtml += `<button class="lt-tabs-btn${idx === 0 ? ' lt-active' : ''}" data-tab="t${idx}">${escapeHtml(item.title || 'Untitled')}</button>`;
+    panelsHtml += `<div class="lt-tabs-panel${idx === 0 ? ' lt-active' : ''}" data-panel="t${idx}">${item.html || '<p></p>'}</div>`;
+  });
+
+  return `<div class="${uid}">
+<style>
+.${uid} { font-family: 'Source Sans 3', Arial, sans-serif; max-width: 700px; }
+.${uid} .lt-tabs-nav { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 2px solid ${t.base}; }
+.${uid} .lt-tabs-btn { font-family: inherit; font-size: 0.9em; font-weight: 600; color: ${t.base}; background: #f4f4f4; border: 1px solid #d0d0d0; border-bottom: none; border-radius: 6px 6px 0 0; padding: 8px 14px; cursor: pointer; position: relative; top: 2px; }
+.${uid} .lt-tabs-btn:hover { background: #eaeaea; }
+.${uid} .lt-tabs-btn.lt-active { background: ${t.base}; color: #ffffff; border-color: ${t.base}; top: 0; }
+.${uid} .lt-tabs-panels { border: 1px solid ${t.base}; border-top: none; border-radius: 0 0 6px 6px; padding: 14px; }
+.${uid} .lt-tabs-panel { display: none; }
+.${uid} .lt-tabs-panel.lt-active { display: block; }
+.${uid} .lt-tabs-panel a { color: ${t.base}; font-weight: 600; }
+.${uid} .lt-tabs-panel ul, .${uid} .lt-tabs-panel ol { margin: 0 0 8px 20px; padding: 0; }
+.${uid} .lt-tabs-panel p { margin: 0 0 8px; }
+</style>
+<div class="lt-tabs-nav" role="tablist">${btnsHtml}</div>
+<div class="lt-tabs-panels">${panelsHtml}</div>
+</div>
+<script>
+(function() {
+  var root = document.querySelector('.${uid}');
+  if (!root) return;
+  var btns = root.querySelectorAll('.lt-tabs-btn');
+  var panels = root.querySelectorAll('.lt-tabs-panel');
+  btns.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var target = btn.getAttribute('data-tab');
+      btns.forEach(function(b) { b.classList.remove('lt-active'); });
+      panels.forEach(function(p) { p.classList.remove('lt-active'); });
+      btn.classList.add('lt-active');
+      root.querySelector('.lt-tabs-panel[data-panel="' + target + '"]').classList.add('lt-active');
+    });
+  });
+})();
+<\/script>`;
+}
+
+document.getElementById('generateBtn').addEventListener('click', () => {
+  document.getElementById('codeOut').value = generateHtml();
+});
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const out = document.getElementById('codeOut');
+  if (!out.value) return;
+  out.select();
+  navigator.clipboard.writeText(out.value).then(() => {
+    const msg = document.getElementById('copiedMsg');
+    msg.classList.add('show');
+    setTimeout(() => msg.classList.remove('show'), 1800);
+  });
+});
+
+// ---------- Word handout export ----------
+document.getElementById('downloadDocBtn').addEventListener('click', () => {
+  let body = '<h1 style="font-family:Georgia,serif;">Handout</h1>';
+  items.forEach(item => {
+    body += `<h2 style="font-family:Georgia,serif;color:${currentTheme.base};">${escapeHtml(item.title || 'Untitled')}</h2>`;
+    body += item.html || '<p></p>';
+  });
+  const docHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Handout</title></head>
+<body style="font-family:Calibri,Arial,sans-serif;">${body}</body></html>`;
+  const blob = new Blob(['\ufeff', docHtml], { type: 'application/msword' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'tabs-handout.doc';
+  link.click();
+});
+</script>
+
+</body>
+</html>
