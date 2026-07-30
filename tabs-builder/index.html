@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tabs Builder — LEARN Tools</title>
+<link href="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.core.css" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
 <style>
   :root {
     --brand: #6d4f47;
@@ -46,11 +48,39 @@
   .toolbar button { background: #fff; border: 1px solid var(--line); border-radius: 4px; padding: 5px 9px; cursor: pointer; font-size: 0.95em; min-width: 32px; text-align: center; }
   .toolbar button:hover { background: #eee; }
   .toolbar button.active { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .toolbar { position: relative; }
+  .toolbar .divider { width: 1px; height: 22px; background: var(--line); margin: 0 4px; align-self: center; }
+  .toolbar select {
+    width: auto; appearance: none; border: 1px solid transparent; background: transparent; border-radius: 4px;
+    height: 30px; padding: 0 22px 0 8px; font-size: 0.85em; color: var(--ink); cursor: pointer; margin-bottom: 0;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path fill="%23767674" d="M4 6l4 4 4-4"/></svg>');
+    background-repeat: no-repeat; background-position: right 6px center; background-size: 11px;
+  }
+  .toolbar select:hover { background-color: #eee; }
+  .toolbar button svg { width: 15px; height: 15px; display: block; }
+  .toolbar button[aria-pressed="true"] { background: var(--brand); color: #fff; border-color: var(--brand); }
+  .rte-colour-btn { position: relative; font-weight: 700; }
+  .rte-colour-bar { position: absolute; bottom: 4px; left: 6px; right: 6px; height: 3px; border-radius: 1px; background: var(--ink); }
+  .rte-swatch-popover {
+    position: absolute; top: 36px; background: #fff; border: 1px solid var(--line); border-radius: 6px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.12); padding: 8px; display: none; z-index: 20; gap: 6px; flex-wrap: wrap; width: 168px;
+  }
+  .rte-swatch-popover.open { display: flex; }
+  .rte-swatch {
+    width: 24px; height: 24px; border-radius: 5px; border: 1px solid var(--line); cursor: pointer;
+    display: flex; align-items: center; justify-content: center; font-size: 11px;
+  }
+  .rte-swatch:hover { border-color: var(--brand); }
+  .ql-editor {
+    border: 1px solid var(--line); border-radius: 5px; min-height: 70px;
+    padding: 8px 10px; background: #fff; font-size: 0.9em; line-height: 1.5;
+  }
+  .ql-editor:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
+  .ql-editor.ql-blank::before { color: #999; font-style: normal; }
+  .ql-editor h3, .ql-editor h4, .ql-editor h5 { font-family: 'Crimson Pro', Georgia, serif; margin: 4px 0; }
+  .ql-editor p { margin: 0 0 6px; }
+  .ql-editor ul, .ql-editor ol { margin: 0 0 6px 20px; padding: 0; }
 
-  .rte { border: 1px solid var(--line); border-radius: 5px; min-height: 70px; padding: 8px 10px; background: #fff; font-size: 0.9em; }
-  .rte:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
-  .rte h3, .rte h4 { font-family: 'Crimson Pro', Georgia, serif; margin: 4px 0; }
-  .rte:empty:before { content: attr(data-placeholder); color: #999; pointer-events: none; }
 
   .add-btn, .action-btn { background: var(--brand); color: #fff; border: none; border-radius: 6px; padding: 10px 16px; font-weight: 600; cursor: pointer; font-size: 0.95em; }
   .add-btn { width: 100%; }
@@ -192,6 +222,226 @@ linkModal.addEventListener('click', (e) => { if (e.target === linkModal) closeLi
   if (e.key === 'Escape') closeLinkModal(null);
 }));
 
+// ---------- Rich text editor (Quill-based) ----------
+// Style attributors so align/colour export as plain inline style="..."
+// rather than Quill's default ql-* classes — needed since this HTML has to
+// stand alone in Ultra with no Quill stylesheet loaded there.
+const AlignStyle = Quill.import('attributors/style/align');
+const ColorStyle = Quill.import('attributors/style/color');
+AlignStyle.whitelist = ['center'];
+Quill.register(AlignStyle, true);
+Quill.register(ColorStyle, true);
+
+const RTE_COLOUR_SWATCHES = [
+  ['Default', null],
+  ['Black', '#000000'],
+  ['Blue (bright)', '#007288'],
+  ['Blue (muted)', '#004f71'],
+  ['Blue (university)', '#041E42'],
+  ['Brown', '#6d4f47'],
+  ['Burgundy', '#a50034'],
+  ['Green', '#154734'],
+  ['Grey', '#333f48'],
+  ['Jade', '#487A7B'],
+  ['Pink', '#D0006F'],
+  ['Purple', '#830065'],
+  ['Red', '#d50032'],
+];
+
+const RTE_ICONS = {
+  bullets: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="3" cy="5" r="1" fill="currentColor" stroke="none"/><circle cx="3" cy="10" r="1" fill="currentColor" stroke="none"/><circle cx="3" cy="15" r="1" fill="currentColor" stroke="none"/><line x1="7" y1="5" x2="17" y2="5"/><line x1="7" y1="10" x2="17" y2="10"/><line x1="7" y1="15" x2="17" y2="15"/></svg>',
+  numbers: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><text x="0" y="7" font-size="6" fill="currentColor" stroke="none">1.</text><text x="0" y="12" font-size="6" fill="currentColor" stroke="none">2.</text><text x="0" y="17" font-size="6" fill="currentColor" stroke="none">3.</text><line x1="7" y1="5" x2="17" y2="5"/><line x1="7" y1="10" x2="17" y2="10"/><line x1="7" y1="15" x2="17" y2="15"/></svg>',
+  alignLeft: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="12" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/></svg>',
+  alignCenter: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="3" y1="5" x2="17" y2="5"/><line x1="6" y1="10" x2="14" y2="10"/><line x1="3" y1="15" x2="17" y2="15"/></svg>',
+};
+
+// Quill 2.x emits lists as <ol><li data-list="bullet|ordered"><span class="ql-ui" .../>text</li></ol>
+// regardless of type, relying on its own CSS to render bullets via counters.
+// This converts that back into plain, self-rendering <ul>/<ol><li> so the
+// exported HTML doesn't depend on Quill's stylesheet being loaded in Ultra.
+function cleanExportedHtml(html) {
+  const container = document.createElement('div');
+  container.innerHTML = html || '';
+  container.querySelectorAll('ol').forEach((listEl) => {
+    const listItems = Array.from(listEl.children).filter((c) => c.tagName === 'LI');
+    if (!listItems.length) return;
+    const type = listItems[0].getAttribute('data-list') === 'bullet' ? 'ul' : 'ol';
+    const newList = document.createElement(type);
+    listItems.forEach((li) => {
+      li.removeAttribute('data-list');
+      const uiSpan = li.querySelector(':scope > span.ql-ui');
+      if (uiSpan) uiSpan.remove();
+      newList.appendChild(li);
+    });
+    listEl.replaceWith(newList);
+  });
+  return container.innerHTML;
+}
+
+// Builds a Quill-based rich text editor (toolbar + editor) into `container`,
+// keeping item[field] in sync with the raw Quill HTML on every change.
+// Depends on openLinkModal() already being defined above.
+function buildRichTextEditor(item, field, container, options) {
+  const opts = options || {};
+  const placeholder = opts.placeholder || 'Type content here…';
+  const includeHeadings = opts.includeHeadings !== false;
+  const includeAlign = opts.includeAlign !== false;
+  const onChange = opts.onChange || function () {};
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'toolbar';
+  const toolButtons = [];
+  let formatSelect = null;
+
+  if (includeHeadings) {
+    formatSelect = document.createElement('select');
+    formatSelect.setAttribute('aria-label', 'Text style');
+    formatSelect.innerHTML = `
+      <option value="p">Paragraph</option>
+      <option value="3">Heading</option>
+      <option value="4">Subheading</option>
+      <option value="5">Minor heading</option>`;
+    toolbar.appendChild(formatSelect);
+    const d0 = document.createElement('div'); d0.className = 'divider'; toolbar.appendChild(d0);
+  }
+
+  function makeBtn(glyphOrSvg, tooltip, onToggle) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.innerHTML = glyphOrSvg;
+    btn.title = tooltip;
+    btn.setAttribute('aria-label', tooltip);
+    btn.setAttribute('aria-pressed', 'false');
+    btn.addEventListener('mousedown', (e) => { e.preventDefault(); onToggle(); });
+    toolbar.appendChild(btn);
+    toolButtons.push(btn);
+    return btn;
+  }
+
+  const boldBtn = makeBtn('<strong>B</strong>', 'Bold', () => quill.format('bold', !quill.getFormat().bold));
+  const italicBtn = makeBtn('<em>I</em>', 'Italic', () => quill.format('italic', !quill.getFormat().italic));
+
+  let alignLeftBtn, alignCenterBtn;
+  if (includeAlign) {
+    const d1 = document.createElement('div'); d1.className = 'divider'; toolbar.appendChild(d1);
+    alignLeftBtn = makeBtn(RTE_ICONS.alignLeft, 'Align left', () => quill.format('align', false));
+    alignCenterBtn = makeBtn(RTE_ICONS.alignCenter, 'Align centre', () => {
+      quill.format('align', quill.getFormat().align === 'center' ? false : 'center');
+    });
+  }
+
+  const d2 = document.createElement('div'); d2.className = 'divider'; toolbar.appendChild(d2);
+
+  const colourBtn = document.createElement('button');
+  colourBtn.type = 'button';
+  colourBtn.className = 'rte-colour-btn';
+  colourBtn.title = 'Text colour';
+  colourBtn.setAttribute('aria-label', 'Text colour');
+  colourBtn.innerHTML = 'A<span class="rte-colour-bar"></span>';
+  const colourPopover = document.createElement('div');
+  colourPopover.className = 'rte-swatch-popover';
+  RTE_COLOUR_SWATCHES.forEach(([label, colour]) => {
+    const sw = document.createElement('button');
+    sw.type = 'button';
+    sw.className = 'rte-swatch';
+    sw.title = label;
+    sw.setAttribute('aria-label', label);
+    sw.style.background = colour ? colour : '#fff';
+    sw.style.color = colour ? '#fff' : 'var(--ink)';
+    if (!colour) sw.textContent = '×';
+    sw.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      quill.format('color', colour || false);
+      colourPopover.classList.remove('open');
+    });
+    colourPopover.appendChild(sw);
+  });
+  colourBtn.addEventListener('mousedown', (e) => { e.preventDefault(); colourPopover.classList.toggle('open'); });
+  document.addEventListener('click', (e) => {
+    if (!colourBtn.contains(e.target) && !colourPopover.contains(e.target)) colourPopover.classList.remove('open');
+  });
+  toolbar.appendChild(colourBtn);
+  toolbar.appendChild(colourPopover);
+
+  const d3 = document.createElement('div'); d3.className = 'divider'; toolbar.appendChild(d3);
+
+  const bulletBtn = makeBtn(RTE_ICONS.bullets, 'Bulleted list', () => {
+    quill.format('list', quill.getFormat().list === 'bullet' ? false : 'bullet');
+  });
+  const orderedBtn = makeBtn(RTE_ICONS.numbers, 'Numbered list', () => {
+    quill.format('list', quill.getFormat().list === 'ordered' ? false : 'ordered');
+  });
+
+  const d4 = document.createElement('div'); d4.className = 'divider'; toolbar.appendChild(d4);
+
+  const linkBtn = document.createElement('button');
+  linkBtn.type = 'button';
+  linkBtn.innerHTML = '&#128279;';
+  linkBtn.title = 'Insert link';
+  linkBtn.setAttribute('aria-label', 'Insert link');
+  linkBtn.addEventListener('mousedown', (e) => { e.preventDefault(); insertLink(); });
+  toolbar.appendChild(linkBtn);
+
+  container.appendChild(toolbar);
+
+  const editorEl = document.createElement('div');
+  container.appendChild(editorEl);
+
+  const quill = new Quill(editorEl, {
+    placeholder: placeholder,
+    formats: ['bold', 'italic', 'header', 'align', 'color', 'list', 'link'],
+    modules: { toolbar: false },
+  });
+  if (item[field]) quill.clipboard.dangerouslyPasteHTML(item[field]);
+
+  function syncToolbar() {
+    const fmt = quill.getFormat();
+    boldBtn.setAttribute('aria-pressed', fmt.bold ? 'true' : 'false');
+    italicBtn.setAttribute('aria-pressed', fmt.italic ? 'true' : 'false');
+    if (includeAlign) {
+      alignLeftBtn.setAttribute('aria-pressed', !fmt.align ? 'true' : 'false');
+      alignCenterBtn.setAttribute('aria-pressed', fmt.align === 'center' ? 'true' : 'false');
+    }
+    bulletBtn.setAttribute('aria-pressed', fmt.list === 'bullet' ? 'true' : 'false');
+    orderedBtn.setAttribute('aria-pressed', fmt.list === 'ordered' ? 'true' : 'false');
+    if (formatSelect) formatSelect.value = fmt.header ? String(fmt.header) : 'p';
+  }
+
+  if (formatSelect) {
+    formatSelect.addEventListener('change', () => {
+      quill.focus();
+      quill.format('header', formatSelect.value === 'p' ? false : Number(formatSelect.value));
+      syncToolbar();
+    });
+  }
+
+  quill.on('selection-change', (range) => { if (range) syncToolbar(); });
+  quill.on('text-change', () => {
+    syncToolbar();
+    item[field] = quill.root.innerHTML;
+    onChange();
+  });
+
+  function insertLink() {
+    const range = quill.getSelection(true);
+    const selectedText = range && range.length > 0 ? quill.getText(range.index, range.length) : '';
+    openLinkModal(selectedText).then((result) => {
+      if (!result) return;
+      quill.focus();
+      if (range && range.length > 0) {
+        quill.formatText(range.index, range.length, 'link', result.url);
+      } else {
+        quill.insertText(range.index, result.text, 'link', result.url);
+        quill.setSelection(range.index + result.text.length, 0);
+      }
+      item[field] = quill.root.innerHTML;
+      onChange();
+    });
+  }
+
+  syncToolbar();
+}
+
 // ---------- State ----------
 let items = [];
 let itemCounter = 0;
@@ -225,21 +475,6 @@ PALETTE.forEach(p => {
 // ---------- Item editor rendering ----------
 const itemsContainer = document.getElementById('itemsContainer');
 
-function updateToolbarState(toolbar, toolButtons) {
-  toolButtons.forEach(btn => {
-    const cmd = btn.dataset.command;
-    if (!cmd) { btn.classList.remove('active'); return; }
-    let isActive = false;
-    if (cmd === 'formatBlock:h4' || cmd === 'formatBlock:p') {
-      const current = (document.queryCommandValue('formatBlock') || '').toLowerCase();
-      isActive = cmd === 'formatBlock:' + current;
-    } else {
-      try { isActive = document.queryCommandState(cmd); } catch (e) { isActive = false; }
-    }
-    btn.classList.toggle('active', isActive);
-  });
-}
-
 function renderItems() {
   itemsContainer.innerHTML = '';
   items.forEach((item, idx) => {
@@ -271,59 +506,14 @@ function renderItems() {
     contentLabel.textContent = 'Tab content';
     block.appendChild(contentLabel);
 
-    const toolbar = document.createElement('div');
-    toolbar.className = 'toolbar';
-    const tools = [
-      ['<strong>B</strong>', 'Bold', 'bold', () => document.execCommand('bold')],
-      ['<em>I</em>', 'Italic', 'italic', () => document.execCommand('italic')],
-      ['H', 'Heading', 'formatBlock:h4', () => document.execCommand('formatBlock', false, 'H4')],
-      ['¶', 'Paragraph', 'formatBlock:p', () => document.execCommand('formatBlock', false, 'P')],
-      ['•', 'Bulleted list', 'insertUnorderedList', () => document.execCommand('insertUnorderedList')],
-      ['1.', 'Numbered list', 'insertOrderedList', () => document.execCommand('insertOrderedList')],
-      ['🔗', 'Insert link', null, () => insertLink()]
-    ];
-    const toolButtons = [];
-    tools.forEach(([glyph, tooltip, cmd, fn]) => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.innerHTML = glyph;
-      btn.title = tooltip;
-      btn.setAttribute('aria-label', tooltip);
-      if (cmd) btn.dataset.command = cmd;
-      btn.addEventListener('mousedown', (e) => {
-        e.preventDefault(); rte.focus(); fn(); item.html = rte.innerHTML; renderPreview();
-        updateToolbarState(toolbar, toolButtons);
-      });
-      toolbar.appendChild(btn);
-      toolButtons.push(btn);
-    });
-    block.appendChild(toolbar);
-
-    const rte = document.createElement('div');
-    rte.className = 'rte';
-    rte.contentEditable = 'true';
-    rte.setAttribute('data-placeholder', 'Type tab content here…');
-    rte.innerHTML = item.html || '';
-    rte.addEventListener('input', () => { item.html = rte.innerHTML; renderPreview(); });
-    rte.addEventListener('keyup', () => updateToolbarState(toolbar, toolButtons));
-    rte.addEventListener('mouseup', () => updateToolbarState(toolbar, toolButtons));
-    rte.addEventListener('focus', () => updateToolbarState(toolbar, toolButtons));
-
-    function insertLink() {
-      const selectedText = window.getSelection().toString();
-      openLinkModal(selectedText).then(result => {
-        if (!result) return;
-        rte.focus();
-        const safeText = result.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-        const safeUrl = result.url.replace(/"/g,'&quot;');
-        document.execCommand('insertHTML', false, `<a href="${safeUrl}">${safeText}</a>`);
-        item.html = rte.innerHTML;
-        renderPreview();
-      });
-    }
-
-    block.appendChild(rte);
     itemsContainer.appendChild(block);
+
+    buildRichTextEditor(item, 'html', block, {
+      placeholder: 'Type tab content here…',
+      includeHeadings: true,
+      includeAlign: true,
+      onChange: renderPreview,
+    });
   });
 }
 
@@ -350,7 +540,7 @@ function renderPreview() {
     btn.textContent = item.title || '(untitled tab)';
     const panel = document.createElement('div');
     panel.style.display = idx === 0 ? 'block' : 'none';
-    panel.innerHTML = item.html || '<p><em>Empty</em></p>';
+    panel.innerHTML = cleanExportedHtml(item.html) || '<p><em>Empty</em></p>';
     btn.addEventListener('click', () => {
       nav.querySelectorAll('.lt-tabs-btn').forEach(b => b.classList.remove('lt-active'));
       panels.querySelectorAll(':scope > div').forEach(p => p.style.display = 'none');
@@ -382,7 +572,7 @@ function generateHtml() {
   let panelsHtml = '';
   items.forEach((item, idx) => {
     btnsHtml += `<button class="lt-tabs-btn${idx === 0 ? ' lt-active' : ''}" data-tab="t${idx}">${escapeHtml(item.title || 'Untitled')}</button>`;
-    panelsHtml += `<div class="lt-tabs-panel${idx === 0 ? ' lt-active' : ''}" data-panel="t${idx}">${item.html || '<p></p>'}</div>`;
+    panelsHtml += `<div class="lt-tabs-panel${idx === 0 ? ' lt-active' : ''}" data-panel="t${idx}">${cleanExportedHtml(item.html) || '<p></p>'}</div>`;
   });
 
   return `<div class="${uid}">
@@ -441,7 +631,7 @@ document.getElementById('downloadDocBtn').addEventListener('click', () => {
   let body = '<h1 style="font-family:Georgia,serif;">Handout</h1>';
   items.forEach(item => {
     body += `<h2 style="font-family:Georgia,serif;color:${currentTheme.base};">${escapeHtml(item.title || 'Untitled')}</h2>`;
-    body += item.html || '<p></p>';
+    body += cleanExportedHtml(item.html) || '<p></p>';
   });
   const docHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="utf-8"><title>Handout</title></head>
