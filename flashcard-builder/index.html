@@ -46,9 +46,20 @@
   select, input[type=text] { width: 100%; padding: 8px 10px; border: 1px solid var(--line); border-radius: 5px; font-family: inherit; font-size: 0.95em; margin-bottom: 12px; }
 
   .theme-swatches { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
-  .swatch { width: 34px; height: 34px; border-radius: 6px; cursor: pointer; border: 2px solid transparent; }
-  .swatch.active { border-color: var(--ink); }
-  .swatch-name { font-size: 0.7em; text-align: center; margin-top: 2px; color: #555; }
+  .swatch {
+    width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; position: relative;
+    transition: transform 0.1s, border-color 0.1s;
+  }
+  .swatch:hover { transform: scale(1.15); }
+  .swatch.active { border-color: var(--ink); transform: scale(1.15); }
+  .swatch-tooltip {
+    position: absolute; bottom: 38px; left: 50%; transform: translateX(-50%);
+    background: #1a1a1a; color: #fff; font-size: 10px; white-space: nowrap;
+    padding: 3px 7px; border-radius: 4px; pointer-events: none; opacity: 0;
+    transition: opacity 0.15s; z-index: 10;
+  }
+  .swatch:hover .swatch-tooltip { opacity: 1; }
 
   .item-block { border: 1px solid var(--line); border-radius: 6px; padding: 12px; margin-bottom: 12px; background: #fafafa; }
   .item-block .item-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
@@ -470,24 +481,18 @@ items.push(makeItem('Plagiarism'));
 // ---------- Swatches ----------
 const swatchesEl = document.getElementById('swatches');
 PALETTE.forEach(p => {
-  const wrap = document.createElement('div');
-  wrap.style.textAlign = 'center';
   const sw = document.createElement('div');
   sw.className = 'swatch' + (p.key === currentTheme.key ? ' active' : '');
   sw.style.background = p.base;
   sw.title = p.name;
+  sw.innerHTML = `<span class="swatch-tooltip">${p.name}</span>`;
   sw.addEventListener('click', () => {
     currentTheme = p;
     document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
     sw.classList.add('active');
     renderPreview();
   });
-  const label = document.createElement('div');
-  label.className = 'swatch-name';
-  label.textContent = p.name;
-  wrap.appendChild(sw);
-  wrap.appendChild(label);
-  swatchesEl.appendChild(wrap);
+  swatchesEl.appendChild(sw);
 });
 
 // ---------- Item editor rendering ----------
