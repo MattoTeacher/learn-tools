@@ -38,7 +38,9 @@
     max-width: 1300px;
     margin: 0 auto;
   }
-  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } .preview-col .card { position: static; } }
+
+  .preview-col .card { position: sticky; top: 24px; }
 
   .card {
     background: var(--paper);
@@ -158,6 +160,17 @@
   .copied-msg { color: #154734; font-weight: 600; font-size: 0.85em; margin-top: 6px; display: none; }
   .copied-msg.show { display: inline; }
 
+  .import-panel-text { font-size: 0.82em; color: #666; margin-bottom: 10px; line-height: 1.4; }
+  #importPaste {
+    width: 100%; height: 90px; font-family: 'Courier New', monospace; font-size: 0.78em;
+    padding: 8px; border: 1px solid var(--line); border-radius: 5px; resize: vertical; margin-bottom: 8px;
+  }
+  .import-row { margin-bottom: 8px; }
+  .import-status { font-size: 0.82em; margin-top: 8px; display: none; }
+  .import-status.show { display: block; }
+  .import-status.success { color: #154734; }
+  .import-status.error { color: #a50034; }
+
   .modal-backdrop {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
     align-items: center; justify-content: center; z-index: 100;
@@ -199,18 +212,29 @@
   <!-- LEFT: CONTROLS -->
   <div>
     <div class="card">
-      <h2>1. Colour theme</h2>
+      <h2>1. Start from existing content <span style="font-weight:400;font-size:0.7em;color:#777;">(optional)</span></h2>
+      <p class="import-panel-text">Editing an accordion you built before? Upload the HTML file you saved, or paste the code you copied into Ultra, and it'll load back in below so you can make changes.</p>
+      <div class="import-row">
+        <input type="file" id="importFile" accept=".html,.htm,.txt">
+      </div>
+      <textarea id="importPaste" placeholder="...or paste previously generated HTML here"></textarea>
+      <button class="action-btn secondary" id="importBtn">Load content</button>
+      <p class="import-status" id="importStatus"></p>
+    </div>
+
+    <div class="card">
+      <h2>2. Colour theme</h2>
       <div class="theme-swatches" id="swatches"></div>
     </div>
 
     <div class="card">
-      <h2>2. Accordion items</h2>
+      <h2>3. Accordion items</h2>
       <div id="itemsContainer"></div>
       <button class="add-btn" id="addItemBtn">+ Add accordion item</button>
     </div>
 
     <div class="card">
-      <h2>3. Get your content</h2>
+      <h2>4. Get your content</h2>
       <div class="action-row">
         <button class="action-btn" id="generateBtn">Generate HTML for Ultra</button>
         <button class="action-btn secondary" id="downloadDocBtn">Download handout (.doc)</button>
@@ -227,7 +251,7 @@
   </div>
 
   <!-- RIGHT: PREVIEW -->
-  <div>
+  <div class="preview-col">
     <div class="card">
       <h2>Live preview</h2>
       <div id="previewRoot"></div>
@@ -534,8 +558,7 @@ PALETTE.forEach(p => {
   sw.style.background = p.base;
   sw.title = p.name;
   sw.dataset.key = p.key;
-  sw.innerHTML = `<span class="swatch-tooltip">${p.name}</span>`;
-  sw.addEventListener('click', () => {
+  sw.innerHTML = `<span class="swatch-tooltip">${p.name}</span>`;  sw.addEventListener('click', () => {
     currentTheme = p;
     document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
     sw.classList.add('active');
@@ -685,6 +708,81 @@ function escapeHtml(str) {
   d.textContent = str;
   return d.innerHTML;
 }
+
+// ---------- Import existing content ----------
+// Detects the theme colour as whichever hex value appears most often in the
+// pasted stylesheet — the theme colour is reused several times per snippet
+// (border, background, link colour) while incidental colours (white text,
+// body text) only appear once, so this stays robust even if the exact CSS
+// selectors change later.
+function detectThemeHex(styleText) {
+  const matches = styleText.match(/#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?\b/g) || [];
+  const counts = {};
+  matches.forEach(m => {
+    let hex = m.toLowerCase();
+    if (hex.length === 4) hex = '#' + [...hex.slice(1)].map(c => c + c).join('');
+    counts[hex] = (counts[hex] || 0) + 1;
+  });
+  let best = null, bestCount = 0;
+  Object.entries(counts).forEach(([hex, count]) => { if (count > bestCount) { best = hex; bestCount = count; } });
+  return best;
+}
+
+function importFromHtml(html) {
+  const statusEl = document.getElementById('importStatus');
+  statusEl.classList.remove('success', 'error');
+  try {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const styleText = Array.from(doc.querySelectorAll('style')).map(s => s.textContent).join('\n');
+    const themeHex = detectThemeHex(styleText);
+    const matchedTheme = themeHex ? PALETTE.find(p => p.base.toLowerCase() === themeHex) : null;
+
+    const itemEls = doc.querySelectorAll('.lt-acc-item');
+    if (!itemEls.length) throw new Error('No accordion items found');
+
+    const newItems = [];
+    itemEls.forEach(el => {
+      const titleEl = el.querySelector('.lt-acc-trigger');
+      const contentEl = el.querySelector('.lt-acc-panel-inner');
+      itemCounter++;
+      newItems.push({
+        id: 'itm' + itemCounter,
+        title: titleEl ? titleEl.textContent.trim() : '',
+        html: contentEl ? contentEl.innerHTML : '',
+      });
+    });
+
+    items = newItems;
+    if (matchedTheme) currentTheme = matchedTheme;
+    renderItems();
+    renderPreview();
+    document.querySelectorAll('.swatch').forEach(s => s.classList.toggle('active', s.dataset.key === currentTheme.key));
+
+    statusEl.textContent = `Loaded ${newItems.length} item${newItems.length === 1 ? '' : 's'}` +
+      (matchedTheme ? '' : ' — colour theme not recognised, left as-is') + '.';
+    statusEl.classList.add('success', 'show');
+  } catch (err) {
+    statusEl.textContent = "Couldn't read that as accordion HTML — check you've pasted the exact code this tool generated, with nothing removed.";
+    statusEl.classList.add('error', 'show');
+  }
+}
+
+document.getElementById('importBtn').addEventListener('click', () => {
+  const fileInput = document.getElementById('importFile');
+  const pasted = document.getElementById('importPaste').value.trim();
+  if (fileInput.files && fileInput.files[0]) {
+    const reader = new FileReader();
+    reader.onload = () => importFromHtml(reader.result);
+    reader.readAsText(fileInput.files[0]);
+  } else if (pasted) {
+    importFromHtml(pasted);
+  } else {
+    const statusEl = document.getElementById('importStatus');
+    statusEl.classList.remove('success');
+    statusEl.textContent = 'Choose a file or paste HTML first.';
+    statusEl.classList.add('error', 'show');
+  }
+});
 
 document.getElementById('generateBtn').addEventListener('click', () => {
   document.getElementById('codeOut').value = generateHtml();
