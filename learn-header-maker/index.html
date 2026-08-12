@@ -1,0 +1,1067 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LEARN Doc Header Maker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Light mode (default) ── */
+    :root, [data-theme="light"] {
+      --bg:         #f5f4f0;
+      --surface:    #ffffff;
+      --surface2:   #f0ede6;
+      --border:     #dcd9d2;
+      --border2:    #c4c0b8;
+      --text:       #1a1e2a;
+      --text-muted: #6b7080;
+      --text-dim:   #44495a;
+      --accent:     #007288;
+      --accent-ring:#007288;
+      --red:        #D50032;
+      --preview-bg: #e8e5de;
+      --slider-track: #c4c0b8;
+      --toggle-bg:  #dcd9d2;
+      --toggle-icon: "🌙";
+      --radius:     8px;
+    }
+
+    /* ── Dark mode ── */
+    [data-theme="dark"] {
+      --bg:         #0f1420;
+      --surface:    #1a2030;
+      --surface2:   #131825;
+      --border:     #252e42;
+      --border2:    #2d3a52;
+      --text:       #e4e8f0;
+      --text-muted: #6b7a94;
+      --text-dim:   #a0aabb;
+      --accent:     #4ea8de;
+      --accent-ring:#4ea8de;
+      --red:        #D50032;
+      --preview-bg: #0a0f1a;
+      --slider-track: #2d3a52;
+      --toggle-bg:  #252e42;
+      --toggle-icon: "☀️";
+      --radius:     8px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text-dim);
+      font-family: 'Inter', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 24px 20px 40px;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    /* ── App header ── */
+    .app-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .app-header-bar {
+      width: 3px; height: 22px;
+      background: var(--red);
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+    .app-header h1 {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--text);
+      letter-spacing: -0.01em;
+    }
+    .attribution {
+      font-size: 10px;
+      color: var(--text-muted);
+      margin-left: 2px;
+    }
+    .size-badge {
+      font-size: 10px;
+      color: var(--text-muted);
+      background: var(--surface);
+      padding: 3px 9px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+    }
+
+    /* ── Reset button ── */
+    .reset-btn {
+      font-size: 10px;
+      color: var(--text-muted);
+      background: var(--surface);
+      padding: 3px 9px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      cursor: pointer;
+      font-family: 'Inter', system-ui, sans-serif;
+      flex-shrink: 0;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .reset-btn:hover { color: var(--red); border-color: var(--red); }
+
+    /* ── Dark mode toggle ── */
+    .theme-toggle {
+      margin-left: auto;
+      background: var(--toggle-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s, color 0.2s;
+      flex-shrink: 0;
+    }
+    .theme-toggle:hover { color: var(--text); }
+    .theme-toggle-icon { font-size: 14px; line-height: 1; }
+
+    /* ── Preview ── */
+    .preview-wrap {
+      background: var(--preview-bg);
+      border-radius: var(--radius);
+      padding: 10px;
+      margin-bottom: 14px;
+      border: 1px solid var(--border);
+      transition: background 0.2s;
+    }
+    #bm-canvas {
+      width: 100%;
+      height: auto;
+      display: block;
+      border-radius: 4px;
+    }
+    #font-status {
+      text-align: center;
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+
+    /* ── Layout ── */
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    @media (max-width: 600px) {
+      .grid-2 { grid-template-columns: 1fr; }
+    }
+
+    /* ── Panels ── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .section-label {
+      display: block;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+    .sub-divider {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Upload ── */
+    .upload-label {
+      display: block;
+      text-align: center;
+      padding: 10px 12px;
+      border: 1px dashed var(--border2);
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text-muted);
+      background: var(--surface2);
+      margin-bottom: 14px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      transition: border-color 0.2s, color 0.2s, background 0.2s;
+    }
+    .upload-label:hover { border-color: var(--accent); color: var(--text); }
+    .upload-label.loaded { color: #3a9e00; border-color: #3a9e0055; }
+    [data-theme="dark"] .upload-label.loaded { color: #61BF1A; border-color: #61BF1A55; }
+
+    /* ── Sliders ── */
+    .slider-row { margin-bottom: 14px; }
+    .slider-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .slider-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .slider-val {
+      font-size: 11px;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      min-width: 36px;
+      text-align: right;
+    }
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      accent-color: var(--accent);
+      cursor: pointer;
+      background: var(--slider-track);
+      border-radius: 2px;
+      appearance: none;
+      -webkit-appearance: none;
+      outline: none;
+      transition: background 0.2s;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 15px; height: 15px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 15px; height: 15px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: none;
+      cursor: pointer;
+    }
+
+    /* ── Textarea ── */
+    textarea {
+      width: 100%;
+      padding: 9px 11px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+      font-family: 'Inter', system-ui, sans-serif;
+      resize: vertical;
+      line-height: 1.5;
+      margin-bottom: 14px;
+      outline: none;
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
+    }
+    textarea:focus { border-color: var(--accent); }
+
+    /* ── Colour swatches ── */
+    .swatches {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+    .swatch {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      cursor: pointer;
+      flex-shrink: 0;
+      border: 2px solid transparent;
+      transition: transform 0.12s, box-shadow 0.12s;
+    }
+    .swatch:hover { transform: scale(1.1); }
+    .swatch.sel {
+      border: 2.5px solid #fff;
+      box-shadow: 0 0 0 2.5px var(--accent-ring), 0 2px 8px rgba(0,0,0,0.25);
+      transform: scale(1.18);
+    }
+    [data-theme="light"] .swatch.sel {
+      border: 2.5px solid var(--bg);
+    }
+    .swatch-orig {
+      background: var(--surface2);
+      border: 1.5px solid var(--border2) !important;
+      font-size: 11px;
+      color: var(--text-muted);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .swatch-orig.sel {
+      border: 2.5px solid var(--bg) !important;
+      box-shadow: 0 0 0 2.5px var(--accent-ring), 0 2px 8px rgba(0,0,0,0.2);
+      transform: scale(1.18);
+    }
+    .colour-hint-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 9px;
+      min-height: 16px;
+    }
+    .colour-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .contrast-badge {
+      font-size: 9.5px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 9px;
+      letter-spacing: 0.03em;
+      display: none;
+    }
+    .contrast-badge.show { display: inline-block; }
+    .contrast-badge.aaa { background: #dff3e0; color: #1c6b2c; }
+    .contrast-badge.aa   { background: #e2eefc; color: #1a4f8a; }
+    .contrast-badge.low  { background: #fbe2e2; color: #9c1c1c; }
+    [data-theme="dark"] .contrast-badge.aaa { background: #123821; color: #7fdb9a; }
+    [data-theme="dark"] .contrast-badge.aa   { background: #10253d; color: #7cb2f2; }
+    [data-theme="dark"] .contrast-badge.low  { background: #3a1414; color: #f19a9a; }
+    .recolour-note {
+      font-size: 10px;
+      color: var(--text-muted);
+      line-height: 1.55;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Background mode toggle (Light / Dark palette) ── */
+    .mode-toggle-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 8px 4px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-weight: 600;
+      border: 1.5px solid var(--border2);
+      background: var(--surface2);
+      color: var(--text-muted);
+      transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .mode-btn:hover { color: var(--text); }
+    .mode-btn.sel {
+      border-color: var(--accent);
+      color: var(--text);
+      background: var(--surface);
+    }
+    .mode-hint {
+      font-size: 10.5px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      margin-bottom: 10px;
+    }
+
+    /* ── Background buttons ── */
+    .bg-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .bg-btn {
+      flex: 1 1 calc(20% - 8px);
+      min-width: 60px;
+      padding: 10px 4px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 10px;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-weight: 600;
+      border: 2px solid transparent;
+      transition: border-color 0.15s;
+      color: #333;
+    }
+    .bg-btn.on-dark { color: #fff; }
+    .bg-btn:hover { border-color: #aaa; }
+    .bg-btn.sel { border-color: var(--accent); }
+
+    /* ── Flip layout toggle ── */
+    .flip-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+    .flip-label {
+      font-size: 12px;
+      color: var(--text);
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .flip-switch {
+      position: relative;
+      width: 38px;
+      height: 21px;
+      background: var(--toggle-bg);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: background 0.2s;
+    }
+    .flip-switch::after {
+      content: "";
+      position: absolute;
+      top: 2px; left: 2px;
+      width: 15px; height: 15px;
+      border-radius: 50%;
+      background: var(--text-muted);
+      transition: transform 0.18s, background 0.18s;
+    }
+    .flip-switch.on { background: var(--accent); border-color: var(--accent); }
+    .flip-switch.on::after {
+      transform: translateX(17px);
+      background: #fff;
+    }
+
+    /* ── Download ── */
+    .btn-download {
+      display: block;
+      width: 100%;
+      padding: 13px;
+      background: var(--red);
+      border: none;
+      border-radius: var(--radius);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: 'Inter', system-ui, sans-serif;
+      cursor: pointer;
+      letter-spacing: 0.02em;
+      transition: opacity 0.15s;
+    }
+    .btn-download:hover { opacity: 0.88; }
+  </style>
+</head>
+<body>
+
+  <header class="app-header">
+    <div class="app-header-bar"></div>
+    <h1>LEARN Doc Header Maker</h1>
+    <span class="attribution">made with Claude</span>
+    <span class="size-badge">1920 &times; 320 px</span>
+    <button class="reset-btn" id="reset-btn" title="Clear saved settings and restore defaults">&#8635; Reset</button>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle dark mode">
+      <span class="theme-toggle-icon" id="toggle-icon">🌙</span>
+      <span id="toggle-label">Dark mode</span>
+    </button>
+  </header>
+
+  <div class="preview-wrap">
+    <canvas id="bm-canvas"></canvas>
+    <div id="font-status">Loading font&hellip;</div>
+  </div>
+
+  <div class="panel flip-row" style="margin-bottom:12px;">
+    <span class="flip-label">&#8646; Flip layout (swap image / text sides)</span>
+    <div class="flip-switch" id="flip-switch"></div>
+  </div>
+
+  <div class="grid-2">
+
+    <!-- Image panel -->
+    <div class="panel">
+      <span class="section-label">Image</span>
+      <label class="upload-label" id="upload-label">
+        <span id="upload-text">&#8593; Click to upload image</span>
+        <input type="file" accept="image/*,.svg" id="bm-file" style="display:none">
+      </label>
+      <div class="slider-row">
+        <div class="slider-top">
+          <span class="slider-label">Horizontal position</span>
+          <span class="slider-val" id="ix-val">15%</span>
+        </div>
+        <input type="range" min="-10" max="50" step="0.5" value="15" id="bm-ix">
+      </div>
+      <div class="slider-row">
+        <div class="slider-top">
+          <span class="slider-label">Size</span>
+          <span class="slider-val" id="ih-val">85%</span>
+        </div>
+        <input type="range" min="20" max="120" step="1" value="85" id="bm-ih">
+      </div>
+      <div class="sub-divider">
+        <span class="section-label">Recolour image</span>
+        <div class="colour-hint-row">
+          <div class="colour-hint" id="img-colour-name">Original colours</div>
+          <span class="contrast-badge" id="img-contrast-badge"></span>
+        </div>
+        <div class="swatches" id="img-colours"></div>
+        <p class="recolour-note">Recolouring works best with SVG files or PNG images that have a transparent background (e.g. flat icons or silhouettes). It will not work as expected on photos or images with a white background.</p>
+      </div>
+    </div>
+
+    <!-- Text panel -->
+    <div class="panel">
+      <span class="section-label">Text</span>
+      <textarea id="bm-text" rows="2" placeholder="Heading text&hellip;">What is Health?</textarea>
+      <div class="slider-row">
+        <div class="slider-top">
+          <span class="slider-label">Font size</span>
+          <span class="slider-val" id="fs-val">80px</span>
+        </div>
+        <input type="range" min="24" max="160" step="2" value="80" id="bm-fs">
+      </div>
+      <div class="slider-row">
+        <div class="slider-top">
+          <span class="slider-label">Horizontal position</span>
+          <span class="slider-val" id="tx-val">67%</span>
+        </div>
+        <input type="range" min="0" max="90" step="0.5" value="67" id="bm-tx">
+      </div>
+      <div class="slider-row">
+        <div class="slider-top">
+          <span class="slider-label">Vertical position</span>
+          <span class="slider-val" id="ty-val">50%</span>
+        </div>
+        <input type="range" min="10" max="90" step="0.5" value="50" id="bm-ty">
+      </div>
+      <div class="sub-divider">
+        <span class="section-label">Text colour</span>
+        <div class="colour-hint-row">
+          <div class="colour-hint" id="text-colour-name">University Blue</div>
+          <span class="contrast-badge" id="text-contrast-badge"></span>
+        </div>
+        <div class="swatches" id="text-colours"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Background -->
+  <div class="panel" style="margin-bottom:12px;">
+    <span class="section-label">Background</span>
+    <div class="mode-toggle-row" id="mode-toggle-row"></div>
+    <p class="mode-hint" id="mode-hint"></p>
+    <div class="bg-row" id="bg-row"></div>
+  </div>
+
+  <button class="btn-download" id="btn-download">
+    &#8595; Download header &mdash; PNG (1920 &times; 320)
+  </button>
+
+  <script>
+    const CW = 1920, CH = 320;
+
+    /* 11 official brand colours, used for text and image recolouring on LIGHT backgrounds */
+    const BRAND = [
+      {name:"University Red",   hex:"#D50032"},
+      {name:"University Blue",  hex:"#041E42"},
+      {name:"Bright Blue",      hex:"#007288"},
+      {name:"Bright Pink",      hex:"#D0006F"},
+      {name:"Purple",           hex:"#830065"},
+      {name:"Burgundy",         hex:"#A50034"},
+      {name:"Dark Green",       hex:"#154734"},
+      {name:"Jade",             hex:"#487A7B"},
+      {name:"Muted Blue",       hex:"#004F71"},
+      {name:"Muted Brown",      hex:"#6D4F47"},
+      {name:"Spruce Grey",      hex:"#333F48"},
+    ];
+    const WHITE = {name:"White", hex:"#FFFFFF"};
+
+    /* Light backgrounds — verified AA/AAA against the brand colours above */
+    const LIGHT_BGS = [
+      {name:"Cream",      hex:"#F0ECD8"},
+      {name:"White",      hex:"#FFFFFF"},
+      {name:"Warm Grey",  hex:"#E5E1DA"},
+      {name:"Pale Slate", hex:"#DDE5EA"},
+      {name:"Pale Jade",  hex:"#E4EFEE"},
+    ];
+    /* Dark backgrounds, drawn from the brand palette — all AAA against White text */
+    const DARK_BGS = [
+      {name:"University Blue", hex:"#041E42"},
+      {name:"Spruce Grey",     hex:"#333F48"},
+      {name:"Dark Green",      hex:"#154734"},
+      {name:"Purple",          hex:"#830065"},
+      {name:"Burgundy",        hex:"#A50034"},
+    ];
+
+    const state = {
+      imgObj: null, imgXpct: 15, imgHpct: 85, imgColour: null,
+      text: "What is Health?", fontSize: 80,
+      textXpct: 67, textYpct: 50,
+      bgMode: "light",
+      bgColour: "#F0ECD8", textColour: "#041E42",
+      flipped: false,
+      fontReady: false,
+      placeholderImg: null,
+    };
+
+    const canvas = document.getElementById("bm-canvas");
+
+    /* ── Theme toggle ── */
+    const html = document.documentElement;
+    const toggleBtn = document.getElementById("theme-toggle");
+    const toggleIcon = document.getElementById("toggle-icon");
+    const toggleLabel = document.getElementById("toggle-label");
+    let darkMode = false;
+
+    toggleBtn.addEventListener("click", () => {
+      darkMode = !darkMode;
+      html.setAttribute("data-theme", darkMode ? "dark" : "light");
+      toggleIcon.textContent = darkMode ? "☀️" : "🌙";
+      toggleLabel.textContent = darkMode ? "Light mode" : "Dark mode";
+    });
+
+    /* ── Text wrapping ── */
+    function drawWrappedText(cx, text, x, y, maxW, lh) {
+      const paras = text.split("\n");
+      const lines = [];
+      for (const p of paras) {
+        if (!p.trim()) { lines.push(""); continue; }
+        const words = p.split(" ");
+        let line = "";
+        for (let i = 0; i < words.length; i++) {
+          const test = line + words[i] + " ";
+          if (cx.measureText(test).width > maxW && i > 0) {
+            lines.push(line.trim()); line = words[i] + " ";
+          } else { line = test; }
+        }
+        lines.push(line.trim());
+      }
+      const sy = y - ((lines.length - 1) * lh) / 2;
+      lines.forEach((l, i) => cx.fillText(l, x, sy + i * lh));
+    }
+
+    /* ── Placeholder icon (shown until the user uploads their own image) ── */
+    const PLACEHOLDER_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+      <g fill="none" stroke="#000" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 30 L50 15 L90 30 L50 45 Z"/>
+        <path d="M28 38 L28 62 C28 68 38 75 50 75 C62 75 72 68 72 62 L72 38"/>
+        <path d="M90 30 L90 58"/>
+        <circle cx="90" cy="65" r="4" fill="#000" stroke="none"/>
+      </g>
+    </svg>`;
+    const placeholderSrc = "data:image/svg+xml;base64," + btoa(PLACEHOLDER_SVG);
+    (function loadPlaceholder() {
+      const img = new Image();
+      img.onload = () => { state.placeholderImg = img; redraw(); };
+      img.src = placeholderSrc;
+    })();
+
+    /* ── Image recolouring ── */
+    function drawImageRecoloured(cx, img, ix, iy, iw, ih, colour) {
+      if (!colour) { cx.drawImage(img, ix, iy, iw, ih); return; }
+      const off = document.createElement("canvas");
+      off.width = Math.round(iw); off.height = Math.round(ih);
+      const octx = off.getContext("2d");
+      octx.drawImage(img, 0, 0, off.width, off.height);
+      octx.globalCompositeOperation = "source-in";
+      octx.fillStyle = colour;
+      octx.fillRect(0, 0, off.width, off.height);
+      cx.drawImage(off, ix, iy);
+    }
+
+    /* ── Draw ──
+       showPlaceholder is only true for the on-screen preview canvas — the
+       placeholder icon is a visual aid and is never baked into the downloaded PNG. */
+    function drawToCanvas(c, scale, showPlaceholder) {
+      const w = Math.round(CW * scale), h = Math.round(CH * scale);
+      c.width = w; c.height = h;
+      const cx = c.getContext("2d");
+
+      cx.fillStyle = state.bgColour;
+      cx.fillRect(0, 0, w, h);
+
+      const flip = state.flipped;
+      const activeImg = state.imgObj || (showPlaceholder ? state.placeholderImg : null);
+
+      if (activeImg) {
+        const ih = (state.imgHpct / 100) * h;
+        const iw = activeImg.width * (ih / activeImg.height);
+        let ix = (state.imgXpct / 100) * w;
+        if (flip) ix = w - ix - iw;
+        const iy = (h - ih) / 2;
+        if (state.imgObj) {
+          drawImageRecoloured(cx, activeImg, ix, iy, iw, ih, state.imgColour);
+        } else {
+          // Placeholder: tint with the chosen image colour, falling back to the text colour
+          cx.save();
+          cx.globalAlpha = 0.55;
+          drawImageRecoloured(cx, activeImg, ix, iy, iw, ih, state.imgColour || state.textColour);
+          cx.restore();
+        }
+      }
+
+      const fs = state.fontSize * scale;
+      cx.font = `600 ${fs}px 'Crimson Pro', Georgia, serif`;
+      cx.fillStyle = state.textColour;
+      cx.textBaseline = "middle";
+      let tx = (state.textXpct / 100) * w;
+      let maxW;
+      if (flip) {
+        tx = w - tx;
+        maxW = Math.max(tx - 40 * scale, 50);
+        cx.textAlign = "right";
+      } else {
+        maxW = Math.max(w - tx - 40 * scale, 50);
+        cx.textAlign = "left";
+      }
+      const ty = (state.textYpct / 100) * h;
+      drawWrappedText(cx, state.text || " ", tx, ty, maxW, fs * 1.3);
+    }
+
+    /* ── WCAG contrast checking ── */
+    function relLum(hex) {
+      hex = hex.replace("#", "");
+      const lin = v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); };
+      const r = lin(parseInt(hex.slice(0, 2), 16));
+      const g = lin(parseInt(hex.slice(2, 4), 16));
+      const b = lin(parseInt(hex.slice(4, 6), 16));
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    }
+    function contrastRatio(hex1, hex2) {
+      const l1 = relLum(hex1), l2 = relLum(hex2);
+      const lighter = Math.max(l1, l2), darker = Math.min(l1, l2);
+      return (lighter + 0.05) / (darker + 0.05);
+    }
+    function setContrastBadge(el, ratio) {
+      const tag = ratio >= 7 ? "AAA" : ratio >= 4.5 ? "AA" : "Low contrast";
+      const cls = ratio >= 7 ? "aaa" : ratio >= 4.5 ? "aa" : "low";
+      el.textContent = ratio.toFixed(1) + ":1 \u00b7 " + tag;
+      el.className = "contrast-badge show " + cls;
+    }
+    function updateContrastBadges() {
+      setContrastBadge(document.getElementById("text-contrast-badge"), contrastRatio(state.textColour, state.bgColour));
+      const imgBadge = document.getElementById("img-contrast-badge");
+      if (state.imgColour) {
+        setContrastBadge(imgBadge, contrastRatio(state.imgColour, state.bgColour));
+      } else {
+        imgBadge.className = "contrast-badge";
+      }
+    }
+
+    function redraw() {
+      updateContrastBadges();
+      if (!state.fontReady) return;
+      const w = canvas.parentElement ? canvas.parentElement.clientWidth : 960;
+      drawToCanvas(canvas, w / CW, true);
+    }
+
+    /* ── Settings persistence (localStorage) ── */
+    const STORAGE_KEY = "learnHeaderMaker.settings.v1";
+    function saveSettings() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({
+          text: state.text, fontSize: state.fontSize,
+          textXpct: state.textXpct, textYpct: state.textYpct,
+          imgXpct: state.imgXpct, imgHpct: state.imgHpct,
+          bgMode: state.bgMode, bgColour: state.bgColour,
+          textColour: state.textColour, imgColour: state.imgColour,
+          flipped: state.flipped,
+        }));
+      } catch (e) { /* storage unavailable or full — settings just won't persist */ }
+    }
+    function loadSettings() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) { return null; }
+    }
+    function commit() { redraw(); saveSettings(); }
+
+    /* ── Font loading ── */
+    document.fonts.load("600 80px 'Crimson Pro'").then(() => {
+      state.fontReady = true;
+      document.getElementById("font-status").style.display = "none";
+      redraw();
+    });
+    setTimeout(() => {
+      if (!state.fontReady) {
+        state.fontReady = true;
+        document.getElementById("font-status").style.display = "none";
+        redraw();
+      }
+    }, 3000);
+
+    /* ── File upload ── */
+    document.getElementById("bm-file").addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const img = new Image();
+        img.onload = () => {
+          state.imgObj = img;
+          document.getElementById("upload-label").classList.add("loaded");
+          document.getElementById("upload-text").textContent = "\u2713 " + file.name;
+          redraw();
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+
+    /* ── Sliders ── */
+    function bindSlider(id, valId, unit, key) {
+      const el = document.getElementById(id);
+      const vo = document.getElementById(valId);
+      el.addEventListener("input", () => {
+        state[key] = +el.value;
+        vo.textContent = Math.round(+el.value) + unit;
+        commit();
+      });
+    }
+    function setSliderValue(id, valId, unit, value) {
+      document.getElementById(id).value = value;
+      document.getElementById(valId).textContent = Math.round(value) + unit;
+    }
+    bindSlider("bm-ix", "ix-val", "%", "imgXpct");
+    bindSlider("bm-ih", "ih-val", "%", "imgHpct");
+    bindSlider("bm-fs", "fs-val", "px", "fontSize");
+    bindSlider("bm-tx", "tx-val", "%", "textXpct");
+    bindSlider("bm-ty", "ty-val", "%", "textYpct");
+
+    document.getElementById("bm-text").addEventListener("input", e => {
+      state.text = e.target.value; commit();
+    });
+
+    /* ── Background mode toggle (Light / Dark) ── */
+    const bgRow = document.getElementById("bg-row");
+    const modeRow = document.getElementById("mode-toggle-row");
+    const modeHint = document.getElementById("mode-hint");
+    const MODE_HINTS = {
+      light: "Light backgrounds pair with any of the 11 brand colours for text and images.",
+      dark:  "Dark backgrounds are restricted to White text and images, to keep contrast accessible."
+    };
+
+    ["light", "dark"].forEach(mode => {
+      const btn = document.createElement("button");
+      btn.className = "mode-btn" + (mode === state.bgMode ? " sel" : "");
+      btn.textContent = mode === "light" ? "Light backgrounds" : "Dark backgrounds";
+      btn.addEventListener("click", () => { setBgMode(mode); saveSettings(); });
+      btn.dataset.mode = mode;
+      modeRow.appendChild(btn);
+    });
+
+    function setBgMode(mode) {
+      state.bgMode = mode;
+      modeRow.querySelectorAll(".mode-btn").forEach(b => b.classList.toggle("sel", b.dataset.mode === mode));
+      modeHint.textContent = MODE_HINTS[mode];
+
+      const bgs = mode === "light" ? LIGHT_BGS : DARK_BGS;
+      state.bgColour = bgs[0].hex;
+      buildBgRow(bgs);
+
+      // Dark backgrounds only permit White text/images, to preserve accessible contrast
+      state.textColour = mode === "light" ? "#041E42" : "#FFFFFF";
+      if (mode === "dark" && state.imgColour !== null) state.imgColour = "#FFFFFF";
+      if (mode === "light" && state.imgColour === "#FFFFFF") state.imgColour = null;
+      buildImgSwatches(mode);
+      buildTextSwatches(mode);
+      redraw();
+    }
+
+    function buildBgRow(bgs) {
+      bgRow.innerHTML = "";
+      bgs.forEach((bg, i) => {
+        const btn = document.createElement("button");
+        const isDark = state.bgMode === "dark";
+        btn.className = "bg-btn" + (isDark ? " on-dark" : "") + (i === 0 ? " sel" : "");
+        btn.textContent = bg.name;
+        btn.style.background = bg.hex;
+        btn.dataset.hex = bg.hex;
+        btn.addEventListener("click", () => {
+          state.bgColour = bg.hex;
+          bgRow.querySelectorAll(".bg-btn").forEach(b => b.classList.remove("sel"));
+          btn.classList.add("sel");
+          commit();
+        });
+        bgRow.appendChild(btn);
+      });
+    }
+
+    /* ── Image colour swatches ── */
+    function buildImgSwatches(mode) {
+      const row = document.getElementById("img-colours");
+      const hint = document.getElementById("img-colour-name");
+      row.innerHTML = "";
+
+      const origBtn = document.createElement("button");
+      origBtn.className = "swatch swatch-orig sel";
+      origBtn.title = "Original colours";
+      origBtn.textContent = "\u2605";
+      origBtn.addEventListener("click", () => {
+        row.querySelectorAll(".swatch").forEach(b => b.classList.remove("sel"));
+        origBtn.classList.add("sel");
+        hint.textContent = "Original colours";
+        state.imgColour = null; commit();
+      });
+      row.appendChild(origBtn);
+
+      const palette = mode === "light" ? BRAND : [WHITE];
+      palette.forEach(c => {
+        const btn = document.createElement("button");
+        btn.className = "swatch";
+        btn.style.background = c.hex;
+        btn.title = c.name;
+        btn.dataset.hex = c.hex;
+        if (c.hex === "#FFFFFF") btn.style.border = "1.5px solid var(--border2)";
+        btn.addEventListener("click", () => {
+          row.querySelectorAll(".swatch").forEach(b => b.classList.remove("sel"));
+          btn.classList.add("sel");
+          hint.textContent = c.name;
+          state.imgColour = c.hex; commit();
+        });
+        row.appendChild(btn);
+      });
+      hint.textContent = "Original colours";
+    }
+
+    /* ── Text colour swatches ── */
+    function buildTextSwatches(mode) {
+      const row = document.getElementById("text-colours");
+      const hint = document.getElementById("text-colour-name");
+      row.innerHTML = "";
+
+      const palette = mode === "light" ? BRAND : [WHITE];
+      palette.forEach((c, i) => {
+        const btn = document.createElement("button");
+        btn.className = "swatch" + (c.hex === state.textColour ? " sel" : "");
+        btn.style.background = c.hex;
+        btn.title = c.name;
+        btn.dataset.hex = c.hex;
+        if (c.hex === "#FFFFFF") btn.style.border = "1.5px solid var(--border2)";
+        btn.addEventListener("click", () => {
+          row.querySelectorAll(".swatch").forEach(b => b.classList.remove("sel"));
+          btn.classList.add("sel");
+          hint.textContent = c.name;
+          state.textColour = c.hex; commit();
+        });
+        row.appendChild(btn);
+      });
+      hint.textContent = mode === "light" ? "University Blue" : "White";
+    }
+
+    /* ── Restore saved settings, or fall back to defaults ── */
+    const saved = loadSettings();
+    if (saved) {
+      state.text = saved.text ?? state.text;
+      state.fontSize = saved.fontSize ?? state.fontSize;
+      state.textXpct = saved.textXpct ?? state.textXpct;
+      state.textYpct = saved.textYpct ?? state.textYpct;
+      state.imgXpct = saved.imgXpct ?? state.imgXpct;
+      state.imgHpct = saved.imgHpct ?? state.imgHpct;
+      state.flipped = saved.flipped ?? state.flipped;
+      setSliderValue("bm-fs", "fs-val", "px", state.fontSize);
+      setSliderValue("bm-tx", "tx-val", "%", state.textXpct);
+      setSliderValue("bm-ty", "ty-val", "%", state.textYpct);
+      setSliderValue("bm-ix", "ix-val", "%", state.imgXpct);
+      setSliderValue("bm-ih", "ih-val", "%", state.imgHpct);
+      document.getElementById("bm-text").value = state.text;
+    }
+
+    setBgMode(saved && saved.bgMode ? saved.bgMode : "light");
+
+    function selectByHex(rowId, hex) {
+      const row = document.getElementById(rowId);
+      if (hex === null || hex === undefined) {
+        const orig = row.querySelector(".swatch-orig");
+        if (orig) orig.click();
+        return;
+      }
+      const btn = row.querySelector(`[data-hex="${hex}"]`);
+      if (btn) btn.click();
+    }
+    if (saved) {
+      if (saved.bgColour) selectByHex("bg-row", saved.bgColour);
+      if (saved.textColour) selectByHex("text-colours", saved.textColour);
+      selectByHex("img-colours", saved.imgColour ?? null);
+      if (saved.flipped) document.getElementById("flip-switch").classList.add("on");
+    }
+    redraw();
+
+    /* ── Filename from header text ── */
+    function filenameFromText(text) {
+      const MAX_LEN = 15;
+      let slug = (text || "")
+        .toLowerCase()
+        .normalize("NFKD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9\s-]/g, "")
+        .trim()
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-");
+      if (slug.length > MAX_LEN) {
+        const cut = slug.slice(0, MAX_LEN);
+        const lastHyphen = cut.lastIndexOf("-");
+        slug = lastHyphen > MAX_LEN * 0.5 ? cut.slice(0, lastHyphen) : cut;
+      }
+      slug = slug.replace(/^-+|-+$/g, "");
+      return (slug || "learn-header") + ".png";
+    }
+
+    /* ── Download ── */
+    document.getElementById("btn-download").addEventListener("click", () => {
+      const off = document.createElement("canvas");
+      drawToCanvas(off, 1, false);
+      off.toBlob(blob => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = filenameFromText(state.text);
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }, "image/png");
+    });
+
+    /* ── Flip layout toggle ── */
+    const flipSwitch = document.getElementById("flip-switch");
+    flipSwitch.addEventListener("click", () => {
+      state.flipped = !state.flipped;
+      flipSwitch.classList.toggle("on", state.flipped);
+      commit();
+    });
+
+    /* ── Reset to defaults ── */
+    document.getElementById("reset-btn").addEventListener("click", () => {
+      if (!confirm("Reset all settings to their defaults? This clears your saved layout, colours and text.")) return;
+
+      state.imgObj = null;
+      document.getElementById("upload-label").classList.remove("loaded");
+      document.getElementById("upload-text").textContent = "\u2191 Click to upload image";
+      document.getElementById("bm-file").value = "";
+
+      state.text = "What is Health?";
+      document.getElementById("bm-text").value = state.text;
+      setSliderValue("bm-fs", "fs-val", "px", 80);
+      setSliderValue("bm-tx", "tx-val", "%", 67);
+      setSliderValue("bm-ty", "ty-val", "%", 50);
+      setSliderValue("bm-ix", "ix-val", "%", 15);
+      setSliderValue("bm-ih", "ih-val", "%", 85);
+      state.fontSize = 80; state.textXpct = 67; state.textYpct = 50;
+      state.imgXpct = 15; state.imgHpct = 85;
+
+      state.flipped = false;
+      flipSwitch.classList.remove("on");
+
+      setBgMode("light");
+      commit();
+    });
+
+    /* ── Redraw on resize ── */
+    window.addEventListener("resize", redraw);
+  </script>
+</body>
+</html>
