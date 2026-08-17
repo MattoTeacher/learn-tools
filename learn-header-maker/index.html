@@ -158,6 +158,9 @@
       gap: 12px;
       margin-bottom: 12px;
     }
+    .grid-2 > .panel {
+      min-width: 0; /* let grid tracks shrink below content's natural width — without this, a long unbroken string (e.g. an uploaded filename) stretches the whole column instead of truncating */
+    }
     @media (max-width: 600px) {
       .grid-2 { grid-template-columns: 1fr; }
     }
