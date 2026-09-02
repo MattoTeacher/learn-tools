@@ -1,0 +1,757 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Staff Page Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  :root {
+    --uni-blue: #041E42;
+    --orange: #C25E03;
+    --jade: #487A7B;
+    --spruce: #333F48;
+    --line: #DDD9D3;
+    --bg: #F4F3F0;
+    --card: #FFFFFF;
+    --ink: #1A2230;
+    --muted: #6B7280;
+    --danger: #AD033B;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 15px;
+    line-height: 1.55;
+    min-height: 100vh;
+  }
+
+  /* ---- Header ---- */
+  .site-header {
+    background: var(--uni-blue);
+    padding: 20px 32px;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+  }
+  .site-header h1 {
+    color: white;
+    font-size: 1.25em;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+  }
+  .site-header p {
+    color: rgba(255,255,255,0.6);
+    font-size: 13px;
+  }
+
+  /* ---- Layout ---- */
+  .workspace {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 65px);
+  }
+
+  .sidebar {
+    background: var(--card);
+    border-right: 1px solid var(--line);
+    padding: 24px 22px;
+    display: flex;
+    flex-direction: column;
+    gap: 28px;
+    overflow-y: auto;
+  }
+
+  .main {
+    padding: 24px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* ---- Section labels ---- */
+  .section-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--spruce);
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  /* ---- Upload area ---- */
+  .upload-zone {
+    border: 2px dashed var(--line);
+    border-radius: 10px;
+    padding: 28px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+    position: relative;
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--orange);
+    background: #FFF8F2;
+  }
+  .upload-zone input[type="file"] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .upload-icon { font-size: 28px; margin-bottom: 8px; }
+  .upload-zone p { font-size: 13px; color: var(--muted); }
+  .upload-zone strong { color: var(--ink); }
+  .file-loaded {
+    border-color: var(--jade);
+    background: #F0F7F7;
+  }
+  .file-loaded p { color: var(--jade); font-weight: 600; }
+
+  /* ---- Column mapping ---- */
+  .map-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px 10px;
+  }
+  .map-row { display: contents; }
+  .map-label {
+    font-size: 12.5px;
+    color: var(--spruce);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .map-label .req { color: var(--orange); font-size: 10px; }
+  .map-select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    font-size: 13px;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  /* ---- Colour palette ---- */
+  .palette-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+  }
+  .swatch-btn {
+    width: 30px; height: 30px;
+    border-radius: 7px;
+    border: 2px solid white;
+    box-shadow: 0 0 0 1px var(--line);
+    cursor: pointer;
+    position: relative;
+    transition: transform .1s;
+    padding: 0;
+  }
+  .swatch-btn:hover { transform: scale(1.15); }
+  .swatch-btn.active {
+    box-shadow: 0 0 0 2.5px var(--ink), 0 0 0 4.5px white;
+  }
+  .swatch-btn .tick {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; color: white;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    opacity: 0;
+  }
+  .swatch-btn.active .tick { opacity: 1; }
+
+  .colour-readout {
+    margin-top: 8px;
+    font-size: 12.5px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .colour-readout .pip {
+    width: 14px; height: 14px; border-radius: 4px; display: inline-block;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
+  }
+
+  /* ---- Stylesheet URL ---- */
+  .url-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  /* ---- Generate button ---- */
+  .btn-generate {
+    width: 100%;
+    padding: 12px;
+    background: var(--orange);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  .btn-generate:hover { opacity: 0.88; }
+  .btn-generate:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ---- Main panel ---- */
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .panel-head {
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--line);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--spruce);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .panel-body { padding: 16px 18px; }
+
+  /* ---- Staff preview cards ---- */
+  .staff-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  .staff-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .staff-thumb {
+    width: 40px; height: 40px; border-radius: 50%;
+    object-fit: cover; background: var(--jade); flex-shrink: 0;
+  }
+  .staff-name { font-weight: 700; color: var(--uni-blue); }
+  .staff-role { color: var(--muted); font-size: 12px; }
+  .staff-flags { margin-left: auto; display: flex; gap: 4px; }
+  .flag {
+    font-size: 11px; padding: 2px 7px; border-radius: 999px;
+    background: #EEF3F2; color: var(--jade); font-weight: 600;
+  }
+  .flag.warn { background: #FFF3CD; color: #664D03; }
+
+  /* ---- HTML output ---- */
+  .output-wrap { position: relative; }
+  .copy-btn {
+    position: absolute; top: 10px; right: 10px;
+    padding: 6px 12px; background: var(--uni-blue); color: white;
+    border: none; border-radius: 5px; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: opacity .15s;
+  }
+  .copy-btn:hover { opacity: 0.85; }
+  textarea#htmlOutput {
+    width: 100%;
+    height: 340px;
+    padding: 14px;
+    padding-top: 42px;
+    font-family: 'SFMono-Regular', Consolas, monospace;
+    font-size: 12.5px;
+    line-height: 1.6;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #FAFAF8;
+    color: var(--ink);
+    resize: vertical;
+  }
+
+  /* ---- Empty / notice states ---- */
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    font-size: 13.5px;
+  }
+  .empty .icon { font-size: 32px; margin-bottom: 8px; }
+
+  .notice {
+    font-size: 13px;
+    color: var(--muted);
+    padding: 10px 12px;
+    background: #F4F3F0;
+    border-radius: 6px;
+    border-left: 3px solid var(--line);
+  }
+
+  /* ---- Toast ---- */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: var(--ink); color: white; padding: 10px 20px;
+    border-radius: 999px; font-size: 13px; opacity: 0;
+    transition: opacity .2s; pointer-events: none; z-index: 100;
+  }
+  .toast.show { opacity: 1; }
+
+  /* ---- Template download ---- */
+  .btn-template {
+    font-size: 12px; color: var(--jade); background: none; border: none;
+    cursor: pointer; text-decoration: underline; padding: 0;
+  }
+  .btn-template:hover { color: var(--uni-blue); }
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <h1>Staff Page Generator</h1>
+  <p>Upload a spreadsheet, pick a colour, copy the HTML.</p>
+</header>
+
+<div class="workspace">
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="sidebar">
+
+    <!-- Upload -->
+    <div>
+      <span class="section-label">1 — Spreadsheet</span>
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept=".xlsx,.xls,.csv">
+        <div class="upload-icon">📄</div>
+        <p><strong>Click to upload</strong> or drag and drop</p>
+        <p>Excel (.xlsx / .xls) or CSV</p>
+      </div>
+      <div style="margin-top:8px; display:flex; justify-content:space-between; align-items:center;">
+        <span class="notice" style="flex:1;">Need a template? <button class="btn-template" id="downloadTemplate">Download blank spreadsheet</button></span>
+      </div>
+    </div>
+
+    <!-- Column mapping -->
+    <div id="mappingSection" style="display:none;">
+      <span class="section-label">2 — Match columns</span>
+      <p style="font-size:12.5px; color:var(--muted); margin-bottom:10px;">Tell the app which column in your spreadsheet holds each piece of information. <span style="color:var(--orange);">★</span> = required.</p>
+      <div class="map-grid" id="mapGrid"></div>
+    </div>
+
+    <!-- Colour -->
+    <div>
+      <span class="section-label">3 — Theme colour</span>
+      <div class="palette-grid" id="paletteGrid"></div>
+      <div class="colour-readout" id="colourReadout">Pick a colour above</div>
+    </div>
+
+    <!-- Stylesheet -->
+    <div>
+      <span class="section-label">4 — Stylesheet link</span>
+      <input type="text" class="url-input" id="stylesheetUrl"
+        value="https://www.learn.ed.ac.uk/bbcswebdav/xid-57903596_1"
+        placeholder="https://…">
+    </div>
+
+    <!-- Generate -->
+    <button class="btn-generate" id="generateBtn" disabled>Generate HTML</button>
+
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <main class="main">
+
+    <!-- Staff preview -->
+    <div class="panel">
+      <div class="panel-head">
+        Staff preview
+        <span id="staffCount" style="font-weight:400; font-size:12px; color:var(--muted);">No file loaded</span>
+      </div>
+      <div class="panel-body">
+        <div id="staffPreview">
+          <div class="empty">
+            <div class="icon">👥</div>
+            Upload a spreadsheet to see your staff listed here.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HTML output -->
+    <div class="panel">
+      <div class="panel-head">Generated HTML</div>
+      <div class="panel-body">
+        <div id="outputArea">
+          <div class="empty">
+            <div class="icon">📋</div>
+            Your HTML will appear here once you click Generate.
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+
+  // ---- Palette ----
+  const PALETTE = [
+    { name: 'University Red', hex: '#D50032' },
+    { name: 'University Blue', hex: '#041E42' },
+    { name: 'Bright Blue', hex: '#007288' },
+    { name: 'Bright Pink', hex: '#D0006F' },
+    { name: 'Purple', hex: '#830065' },
+    { name: 'Burgundy', hex: '#A50034' },
+    { name: 'Dark Green', hex: '#154734' },
+    { name: 'Jade', hex: '#487A7B' },
+    { name: 'Muted Blue', hex: '#004F71' },
+    { name: 'Muted Brown', hex: '#6D4F47' },
+    { name: 'Spruce Grey', hex: '#333F48' },
+    { name: 'Bright Orange', hex: '#C25E03' },
+    { name: 'Bright Yellow', hex: '#F9A800' },
+    { name: 'Bright Green', hex: '#61BF1A' },
+    { name: 'Bright Red', hex: '#AD033B' },
+    { name: 'Blue', hex: '#0099AB' },
+    { name: 'Muted Turquoise', hex: '#46877F' },
+    { name: 'Brown', hex: '#692E1F' },
+    { name: 'Light Blue', hex: '#C6DBE9' },
+    { name: 'Muted Pink', hex: '#BA8285' },
+    { name: 'Muted Yellow', hex: '#949108' }
+  ];
+
+  // ---- Fields ----
+  const FIELDS = [
+    { key: 'name',       label: 'Name',         required: true  },
+    { key: 'jobTitle',   label: 'Job title',     required: true  },
+    { key: 'bio',        label: 'Bio',           required: false },
+    { key: 'imageUrl',   label: 'Photo URL',     required: false },
+    { key: 'email',      label: 'Email',         required: false },
+    { key: 'websiteUrl', label: 'Website URL',   required: false },
+  ];
+
+  // ---- State ----
+  let columns = [];
+  let rows = [];
+  let mapping = {};
+  let selectedHex = null;
+  let selectedName = null;
+
+  // ---- Palette ----
+  const paletteGrid = document.getElementById('paletteGrid');
+  const colourReadout = document.getElementById('colourReadout');
+  PALETTE.forEach(c => {
+    const btn = document.createElement('button');
+    btn.className = 'swatch-btn';
+    btn.style.background = c.hex;
+    btn.title = c.name + ' · ' + c.hex;
+    btn.innerHTML = '<span class="tick">✓</span>';
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.swatch-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      selectedHex = c.hex;
+      selectedName = c.name;
+      colourReadout.innerHTML = '<span class="pip" style="background:' + c.hex + '"></span>' + c.name + ' · ' + c.hex;
+      updateGenerateBtn();
+    });
+    paletteGrid.appendChild(btn);
+  });
+
+  // ---- File upload ----
+  const uploadZone = document.getElementById('uploadZone');
+  const fileInput = document.getElementById('fileInput');
+
+  uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag-over'); });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) processFile(e.dataTransfer.files[0]);
+  });
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) processFile(fileInput.files[0]); });
+
+  function processFile(file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext === 'csv') {
+      Papa.parse(file, {
+        header: true, skipEmptyLines: true,
+        complete: (res) => { loadData(res.meta.fields, res.data, file.name); },
+        error: () => showToast('Could not read CSV file.')
+      });
+    } else if (ext === 'xlsx' || ext === 'xls') {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const wb = XLSX.read(e.target.result, { type: 'array' });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const data = XLSX.utils.sheet_to_json(ws, { defval: '' });
+          const cols = data.length ? Object.keys(data[0]) : [];
+          loadData(cols, data, file.name);
+        } catch (err) { showToast('Could not read Excel file.'); }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      showToast('Please upload an .xlsx, .xls, or .csv file.');
+    }
+  }
+
+  function loadData(cols, data, filename) {
+    columns = cols;
+    rows = data;
+    mapping = {};
+
+    // Auto-map by fuzzy matching column names
+    const normalize = s => s.toLowerCase().replace(/[\s_\-]/g, '');
+    const matchers = {
+      name:       ['name', 'fullname', 'staffname', 'title'],
+      jobTitle:   ['jobtitle', 'role', 'position', 'title', 'job'],
+      bio:        ['bio', 'biography', 'description', 'about', 'profile'],
+      imageUrl:   ['imageurl', 'photourl', 'image', 'photo', 'picture', 'img'],
+      email:      ['email', 'emailaddress', 'mail', 'contact'],
+      websiteUrl: ['websiteurl', 'website', 'url', 'link', 'web', 'homepage']
+    };
+    FIELDS.forEach(f => {
+      const candidates = matchers[f.key] || [];
+      const match = columns.find(c => candidates.includes(normalize(c)));
+      if (match) mapping[f.key] = match;
+    });
+
+    uploadZone.classList.add('file-loaded');
+    uploadZone.querySelector('p:first-of-type').innerHTML = '<strong>' + escapeHTML(filename || 'File loaded') + '</strong>';
+    uploadZone.querySelector('p:last-of-type').textContent = rows.length + ' row' + (rows.length === 1 ? '' : 's') + ' found';
+
+    renderMappingUI();
+    renderStaffPreview();
+    updateGenerateBtn();
+  }
+
+  // ---- Column mapping UI ----
+  function renderMappingUI() {
+    const section = document.getElementById('mappingSection');
+    const grid = document.getElementById('mapGrid');
+    section.style.display = '';
+    grid.innerHTML = '';
+
+    FIELDS.forEach(f => {
+      const labelEl = document.createElement('div');
+      labelEl.className = 'map-label';
+      labelEl.innerHTML = f.label + (f.required ? ' <span class="req">★</span>' : '');
+
+      const sel = document.createElement('select');
+      sel.className = 'map-select';
+      sel.dataset.field = f.key;
+      const blank = document.createElement('option');
+      blank.value = '';
+      blank.textContent = '— skip —';
+      sel.appendChild(blank);
+      columns.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        opt.textContent = c;
+        if (mapping[f.key] === c) opt.selected = true;
+        sel.appendChild(opt);
+      });
+      sel.addEventListener('change', () => {
+        mapping[f.key] = sel.value || undefined;
+        renderStaffPreview();
+        updateGenerateBtn();
+      });
+
+      grid.appendChild(labelEl);
+      grid.appendChild(sel);
+    });
+  }
+
+  // ---- Staff preview ----
+  function renderStaffPreview() {
+    const el = document.getElementById('staffPreview');
+    const countEl = document.getElementById('staffCount');
+    if (!rows.length) {
+      el.innerHTML = '<div class="empty"><div class="icon">👥</div>No data loaded.</div>';
+      countEl.textContent = 'No file loaded';
+      return;
+    }
+    countEl.textContent = rows.length + ' staff member' + (rows.length === 1 ? '' : 's');
+    const list = document.createElement('div');
+    list.className = 'staff-cards';
+    rows.forEach(row => {
+      const name = mapping.name ? (row[mapping.name] || '') : '';
+      const role = mapping.jobTitle ? (row[mapping.jobTitle] || '') : '';
+      const img = mapping.imageUrl ? (row[mapping.imageUrl] || '') : '';
+      const hasBio = mapping.bio && row[mapping.bio];
+      const hasEmail = mapping.email && row[mapping.email];
+      const hasWeb = mapping.websiteUrl && row[mapping.websiteUrl];
+      const card = document.createElement('div');
+      card.className = 'staff-card';
+
+      const thumb = document.createElement('img');
+      thumb.className = 'staff-thumb';
+      thumb.src = img || '';
+      thumb.alt = name;
+      thumb.onerror = () => {
+        thumb.style.background = '#487A7B';
+        thumb.style.display = 'flex';
+        thumb.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+          "<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40'><rect width='100%' height='100%' fill='%23487A7B'/><text x='50%' y='62%' font-family='sans-serif' font-size='18' fill='white' text-anchor='middle'>" + (name.charAt(0) || '?').toUpperCase() + "</text></svg>"
+        );
+      };
+      if (!img) thumb.onerror();
+
+      const info = document.createElement('div');
+      info.innerHTML = '<div class="staff-name">' + escapeHTML(name || '(no name)') + '</div>' +
+        '<div class="staff-role">' + escapeHTML(role || '') + '</div>';
+
+      const flags = document.createElement('div');
+      flags.className = 'staff-flags';
+      if (!hasBio) flags.innerHTML += '<span class="flag warn">no bio</span>';
+      if (hasEmail || hasWeb) flags.innerHTML += '<span class="flag">contact ✓</span>';
+
+      card.appendChild(thumb);
+      card.appendChild(info);
+      card.appendChild(flags);
+      list.appendChild(card);
+    });
+    el.innerHTML = '';
+    el.appendChild(list);
+  }
+
+  // ---- Generate ----
+  function updateGenerateBtn() {
+    const hasData = rows.length > 0 && mapping.name;
+    const hasColour = !!selectedHex;
+    document.getElementById('generateBtn').disabled = !(hasData && hasColour);
+  }
+
+  document.getElementById('generateBtn').addEventListener('click', generate);
+
+  function escapeHTML(str) {
+    return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function generate() {
+    const stylesheet = document.getElementById('stylesheetUrl').value.trim();
+    const hex = selectedHex;
+
+    // Build each staff block
+    const blocks = rows.map(row => {
+      const get = key => mapping[key] ? (row[mapping[key]] || '').toString().trim() : '';
+      const name     = get('name');
+      const jobTitle = get('jobTitle');
+      const bio      = get('bio');
+      const imageUrl = get('imageUrl');
+      const email    = get('email');
+      const website  = get('websiteUrl');
+
+      const hasContact = email || website;
+      const contactBlock = hasContact
+        ? '\n  <h2 class="programme-header clear">Contact information</h2>\n  <ul>' +
+          (email   ? '\n    <li>Email: <a href="mailto:' + escapeHTML(email) + '">' + escapeHTML(email) + '</a></li>' : '') +
+          (website ? '\n    <li>Website: <a href="' + escapeHTML(website) + '" target="_blank">Visit website</a></li>' : '') +
+          '\n  </ul>'
+        : '';
+
+      return '  \n  <!-- ' + escapeHTML(name) + ' -->\n' +
+        '  <h1>' + escapeHTML(name) + '</h1>\n' +
+        '  <div class="job-title">' + escapeHTML(jobTitle) + '</div>\n' +
+        (imageUrl ? '  <img src="' + escapeHTML(imageUrl) + '" alt="' + escapeHTML(name) + '">\n' : '') +
+        (bio      ? '  <p>' + escapeHTML(bio) + '</p>\n' : '') +
+        (contactBlock ? contactBlock + '\n' : '') +
+        '  <div class="contact-divider" clear></div> <!-- Divider -->';
+    }).join('\n');
+
+    const luminance = hexLuminance(hex);
+    const pillText = luminance > 0.55 ? '#1A1A1A' : '#FFFFFF';
+    const headingColour = luminance > 0.55 ? darken(hex, 0.35) : hex;
+
+    const html =
+      '<!-- Course staff page — generated by Staff Page Generator -->\n' +
+      '<link rel="stylesheet" href="' + escapeHTML(stylesheet) + '">\n' +
+      '<style>\n' +
+      '  .custom-theme { background-color: #F7F7F7; color: #333333; }\n' +
+      '  .custom-theme h1 { color: ' + headingColour + '; }\n' +
+      '  .custom-theme .job-title { background-color: ' + hex + '; color: ' + pillText + '; text-align: center; border-radius: 15px; padding: 5px 20px; margin-bottom: 10px; }\n' +
+      '  .custom-theme ul { border: 3px solid ' + hex + '; padding: 10px 40px; border-radius: 25px; }\n' +
+      '  .custom-theme a:hover { color: #007288; }\n' +
+      '</style>\n' +
+      '<div class="custom-theme programme-card">\n' +
+      blocks + '\n' +
+      '</div>';
+
+    const outputArea = document.getElementById('outputArea');
+    outputArea.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'output-wrap';
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-btn';
+    copyBtn.textContent = 'Copy all';
+    const ta = document.createElement('textarea');
+    ta.id = 'htmlOutput';
+    ta.value = html;
+    ta.spellcheck = false;
+    copyBtn.addEventListener('click', () => {
+      ta.select();
+      navigator.clipboard.writeText(ta.value).then(() => showToast('Copied to clipboard')).catch(() => { ta.select(); showToast('Press Ctrl/Cmd+C to copy'); });
+    });
+    wrap.appendChild(copyBtn);
+    wrap.appendChild(ta);
+    outputArea.appendChild(wrap);
+
+    showToast('HTML generated — ' + rows.length + ' staff member' + (rows.length === 1 ? '' : 's'));
+  }
+
+  // ---- Colour helpers ----
+  function hexLuminance(hex) {
+    const { r, g, b } = hexRgb(hex);
+    const chan = [r, g, b].map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    return 0.2126 * chan[0] + 0.7152 * chan[1] + 0.0722 * chan[2];
+  }
+  function hexRgb(hex) {
+    let h = hex.replace('#', '');
+    if (h.length === 3) h = h.split('').map(c => c + c).join('');
+    const n = parseInt(h, 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  }
+  function darken(hex, amt) {
+    const { r, g, b } = hexRgb(hex);
+    const f = v => Math.round(v * (1 - amt)).toString(16).padStart(2, '0');
+    return '#' + f(r) + f(g) + f(b);
+  }
+
+  // ---- Template download ----
+  document.getElementById('downloadTemplate').addEventListener('click', () => {
+    const headers = ['Name', 'Job title', 'Bio', 'Photo URL', 'Email', 'Website URL'];
+    const example = ['Dr Jane Smith', 'Lecturer in Data Science', 'Jane (she/her) is a lecturer in...', 'https://...', 'j.smith@ed.ac.uk', 'https://...'];
+    const ws = XLSX.utils.aoa_to_sheet([headers, example]);
+    ws['!cols'] = headers.map(() => ({ wch: 28 }));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Staff');
+    XLSX.writeFile(wb, 'staff-page-template.xlsx');
+  });
+
+  // ---- Toast ----
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2000);
+  }
+
+})();
+</script>
+</body>
+</html>
