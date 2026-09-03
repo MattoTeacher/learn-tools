@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Categorisation Builder — LEARN Tools</title>
+<style>
+  :root {
+    --jade: #487A7B;
+    --jade-hover: #355a5b;
+    --paper: #fff;
+    --line: #d7d7d5;
+    --ink: #1a1a1a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    background: #f2f2f0;
+    color: var(--ink);
+  }
+  .top-bar { background: var(--jade); color: #fff; padding: 20px 24px; }
+  .top-bar h1 { margin: 0; font-family: 'Crimson Pro', Georgia, serif; font-size: 1.5em; }
+  .top-bar p { margin: 6px 0 0; font-size: 0.9em; opacity: 0.92; }
+
+  .wrap {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    padding: 24px;
+    max-width: 1300px;
+    margin: 0 auto;
+  }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } .preview-col .card { position: static; } }
+  .preview-col .card { position: sticky; top: 24px; }
+
+  .card {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 18px;
+    margin-bottom: 18px;
+  }
+  .card h2 {
+    font-family: 'Crimson Pro', Georgia, serif;
+    margin: 0 0 12px;
+    font-size: 1.25em;
+    border-bottom: 2px solid var(--jade);
+    padding-bottom: 6px;
+  }
+  label { display: block; font-weight: 600; font-size: 0.85em; margin-bottom: 4px; }
+  select, input[type=text] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: 0.95em;
+    margin-bottom: 10px;
+  }
+
+  .import-panel-text { font-size: 0.82em; color: #666; margin-bottom: 10px; line-height: 1.4; }
+  #importPaste {
+    width: 100%; height: 90px; font-family: 'Courier New', monospace; font-size: 0.78em;
+    padding: 8px; border: 1px solid var(--line); border-radius: 5px; resize: vertical; margin-bottom: 8px;
+  }
+  .import-status { font-size: 0.82em; margin-top: 8px; display: none; }
+  .import-status.show { display: block; }
+  .import-status.success { color: #154734; }
+  .import-status.error { color: #a50034; }
+
+  .theme-swatches { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 4px; }
+  .swatch {
+    width: 32px; height: 32px; border-radius: 50%; cursor: pointer;
+    border: 2px solid transparent; position: relative;
+    transition: transform 0.1s, border-color 0.1s;
+  }
+  .swatch:hover { transform: scale(1.15); }
+  .swatch.active { border-color: var(--ink); transform: scale(1.15); }
+  .swatch-tooltip {
+    position: absolute; bottom: 38px; left: 50%; transform: translateX(-50%);
+    background: #1a1a1a; color: #fff; font-size: 10px; white-space: nowrap;
+    padding: 3px 7px; border-radius: 4px; pointer-events: none; opacity: 0;
+    transition: opacity 0.15s; z-index: 10;
+  }
+  .swatch:hover .swatch-tooltip { opacity: 1; }
+
+  .cat-row, .item-row {
+    display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px;
+  }
+  .cat-row input[type=text] { margin-bottom: 0; }
+  .item-row input[type=text] { margin-bottom: 0; flex: 2; }
+  .item-row select { margin-bottom: 0; flex: 1; min-width: 120px; }
+  .row-remove {
+    background: #f4f4f4; border: 1px solid var(--line); border-radius: 5px;
+    width: 34px; height: 34px; flex-shrink: 0; cursor: pointer; font-size: 1em; color: #a50034;
+  }
+  .row-remove:hover { background: #fbe9ef; }
+  .add-btn, .action-btn {
+    background: var(--jade); color: #fff; border: none; border-radius: 6px;
+    padding: 10px 16px; font-weight: 600; cursor: pointer; font-size: 0.95em;
+  }
+  .add-btn { width: 100%; margin-top: 4px; }
+  .add-btn:hover, .action-btn:hover { background: var(--jade-hover); }
+  .action-btn.secondary { background: #555; }
+  .action-btn.secondary:hover { background: #333; }
+  .action-row { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+  .hint-small { font-size: 0.78em; color: #777; margin: -4px 0 10px; }
+  .warn-inline { font-size: 0.82em; color: #a50034; margin: 4px 0 10px; display: none; }
+  .warn-inline.show { display: block; }
+
+  #codeOut {
+    width: 100%; height: 220px; font-family: 'Courier New', monospace; font-size: 0.8em;
+    padding: 10px; border: 1px solid var(--line); border-radius: 5px; resize: vertical; margin-top: 10px;
+  }
+  .copied-msg { color: #154734; font-weight: 600; font-size: 0.85em; margin-top: 6px; display: none; }
+  .copied-msg.show { display: inline; }
+
+  #previewRoot { min-height: 200px; }
+
+  /* ===== Categorisation widget styling (scoped to the live preview) ===== */
+  #previewRoot .lt-cat-note {
+    background: #fff8e1; border: 1px solid #f0d98c; border-radius: 6px;
+    padding: 10px 14px; font-size: 0.82em; color: #6b5900; margin: 0 0 16px;
+  }
+  #previewRoot .lt-cat-stage {
+    border: 2px solid var(--theme); background: var(--theme-tint); border-radius: 8px;
+    padding: 18px; text-align: center; margin-bottom: 8px; min-height: 32px;
+  }
+  #previewRoot .lt-cat-stage-label {
+    font-size: 0.75em; font-weight: 600; color: var(--theme); text-transform: uppercase;
+    letter-spacing: 0.03em; margin-bottom: 6px;
+  }
+  #previewRoot .lt-cat-stage-pill {
+    display: inline-block; padding: 6px 16px; border-radius: 5px;
+    background: var(--item-color, transparent); color: #fff; font-size: 1.05em; font-weight: 700;
+  }
+  #previewRoot .lt-cat-stage.done .lt-cat-stage-pill { background: none; color: #666; font-size: 1em; font-weight: 400; padding: 0; }
+  #previewRoot .lt-cat-stage.done { border-style: dashed; background: #fafafa; color: #666; }
+  #previewRoot .lt-cat-progress { font-size: 0.85em; color: #666; text-align: center; margin-bottom: 10px; }
+  #previewRoot .lt-cat-arrow { text-align: center; color: var(--theme); font-weight: 600; font-size: 0.85em; margin-bottom: 16px; }
+
+  @keyframes lt-cat-pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(var(--theme-rgb), 0.45); }
+    50% { box-shadow: 0 0 0 7px rgba(var(--theme-rgb), 0); }
+  }
+  @keyframes lt-cat-pop-land { 0% { transform: scale(1.35); } 100% { transform: scale(1); } }
+  @keyframes lt-cat-confetti-fall {
+    0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0.95; }
+    100% { transform: translateY(110vh) translateX(var(--drift, 0px)) rotate(var(--spin, 360deg)); opacity: 0; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #previewRoot .lt-cat-header-btn { animation: none !important; }
+    .lt-cat-chip.just-landed { animation: none !important; }
+    .lt-cat-flyer { transition: none !important; }
+    .lt-cat-confetti-piece { display: none !important; }
+  }
+
+  #previewRoot .lt-cat-categories { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 20px; }
+  #previewRoot .lt-cat-category { border: 1px solid #d7d7d5; border-radius: 8px; overflow: hidden; }
+  #previewRoot .lt-cat-header-btn {
+    width: 100%; text-align: left; font: inherit; background: var(--theme); color: #fff;
+    border: none; padding: 10px 14px; cursor: pointer;
+    animation: lt-cat-pulse-glow 2s ease-in-out infinite;
+    display: flex; align-items: center; gap: 8px;
+  }
+  #previewRoot .lt-cat-header-btn:hover { background: var(--theme-hover); }
+  #previewRoot .lt-cat-header-btn:focus-visible { outline: 2px solid #1a1a1a; outline-offset: -2px; }
+  #previewRoot .lt-cat-plus-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.25);
+    font-size: 0.9em; flex-shrink: 0;
+  }
+  #previewRoot .lt-cat-label-static { font-weight: 600; font-size: 0.95em; background: var(--theme); color: #fff; padding: 10px 14px; }
+  #previewRoot .lt-cat-items { padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 6px; min-height: 20px; }
+  #previewRoot .lt-cat-items:empty::after { content: "—"; color: #ccc; }
+  #previewRoot .lt-cat-chip { padding: 4px 10px; border-radius: 4px; font-size: 0.88em; font-weight: 600; }
+  #previewRoot .lt-cat-chip.correct { background: #e6f2ec; border: 1px solid #154734; color: #154734; }
+  #previewRoot .lt-cat-chip.just-landed { animation: lt-cat-pop-land 0.35s ease-out; }
+  #previewRoot button.lt-cat-chip.pending {
+    border: none; color: #fff; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+    display: inline-flex; align-items: center; gap: 5px; font-family: inherit;
+    transition: background-color 0.5s ease;
+  }
+  #previewRoot button.lt-cat-chip.pending:hover { filter: brightness(1.12); }
+  #previewRoot button.lt-cat-chip.pending:focus-visible { outline: 2px solid #1a1a1a; outline-offset: 2px; }
+  #previewRoot .lt-cat-move-icon { font-size: 0.9em; opacity: 0.85; }
+  #previewRoot button.lt-cat-chip.pending.selected { background: var(--theme) !important; box-shadow: none; }
+  #previewRoot button.lt-cat-chip.pending.selected:hover { background: var(--theme-hover) !important; }
+
+  .lt-cat-flyer {
+    position: fixed; z-index: 200; padding: 4px 10px; border-radius: 4px;
+    font-size: 0.88em; font-weight: 600; color: #fff;
+    background: var(--flyer-color, #487A7B); border: 2px solid var(--flyer-color, #487A7B);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.25); pointer-events: none;
+    transition: left 0.4s cubic-bezier(0.3,0,0.2,1), top 0.4s cubic-bezier(0.3,0,0.2,1), opacity 0.4s;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .lt-cat-confetti-piece {
+    position: fixed; top: -20px; width: 8px; height: 14px; opacity: 0.95;
+    pointer-events: none; z-index: 300;
+    animation-name: lt-cat-confetti-fall;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1);
+    animation-fill-mode: forwards;
+  }
+
+  #previewRoot .lt-cat-controls { display: flex; align-items: center; gap: 14px; }
+  #previewRoot .lt-cat-check-btn {
+    background: var(--theme); color: #fff; border: none; border-radius: 6px;
+    padding: 10px 18px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  #previewRoot .lt-cat-check-btn:hover { background: var(--theme-hover); }
+  #previewRoot .lt-cat-check-btn:disabled { background: #ccc; cursor: default; }
+  #previewRoot .lt-cat-status { font-weight: 600; font-size: 0.95em; }
+  #previewRoot .lt-cat-status.done { color: #154734; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+  <h1>Categorisation Builder</h1>
+  <p>Build a drag-and-tap sorting activity, then copy the code into an Ultra HTML block — or download a plain handout version.</p>
+</div>
+
+<div class="wrap">
+
+  <!-- LEFT: CONTROLS -->
+  <div>
+    <div class="card">
+      <h2>1. Start from existing content <span style="font-weight:400;font-size:0.7em;color:#777;">(optional)</span></h2>
+      <p class="import-panel-text">Editing a categorisation activity you built before? Upload the HTML file you saved, or paste the code you copied into Ultra, and it'll load back in below so you can make changes.</p>
+      <div class="import-row">
+        <input type="file" id="importFile" accept=".html,.htm,.txt">
+      </div>
+      <textarea id="importPaste" placeholder="...or paste previously generated HTML here"></textarea>
+      <button class="action-btn secondary" id="importBtn">Load content</button>
+      <p class="import-status" id="importStatus"></p>
+    </div>
+
+    <div class="card">
+      <h2>2. Colour theme</h2>
+      <div class="theme-swatches" id="swatches"></div>
+    </div>
+
+    <div class="card">
+      <h2>3. Categories</h2>
+      <p class="hint-small">At least 2 categories are needed.</p>
+      <div id="categoriesContainer"></div>
+      <button class="add-btn" id="addCategoryBtn">+ Add category</button>
+    </div>
+
+    <div class="card">
+      <h2>4. Items to sort</h2>
+      <p class="hint-small">Each item needs short text and the category it belongs in.</p>
+      <div id="itemsContainer"></div>
+      <button class="add-btn" id="addItemBtn">+ Add item</button>
+      <p class="warn-inline" id="itemsWarn"></p>
+    </div>
+
+    <div class="card">
+      <h2>5. Get your content</h2>
+      <div class="action-row">
+        <button class="action-btn" id="generateBtn">Generate HTML for Ultra</button>
+        <button class="action-btn secondary" id="downloadDocBtn">Download handout (.doc)</button>
+      </div>
+      <div style="margin-top:14px;">
+        <label for="codeOut">Copy this into an Ultra HTML block</label>
+        <textarea id="codeOut" readonly placeholder="Click &quot;Generate HTML for Ultra&quot; above once your categories and items are ready."></textarea>
+        <div>
+          <button class="action-btn" id="copyBtn" style="margin-top:8px;">Copy to clipboard</button>
+          <span class="copied-msg" id="copiedMsg">Copied!</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: PREVIEW -->
+  <div class="preview-col">
+    <div class="card">
+      <h2>Live preview <span style="font-weight:400; font-size:0.7em; color:#777;">(fully interactive — try it)</span></h2>
+      <div id="previewRoot"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ================= Palette (University's approved 11-colour digital palette) =================
+const PALETTE = [
+  { key: 'uni-red', name: 'University Red', base: '#d50032' },
+  { key: 'uni-blue', name: 'University Blue', base: '#041E42' },
+  { key: 'bright-blue', name: 'Bright Blue', base: '#007288' },
+  { key: 'bright-pink', name: 'Bright Pink', base: '#D0006F' },
+  { key: 'purple', name: 'Purple', base: '#830065' },
+  { key: 'burgundy', name: 'Burgundy', base: '#a50034' },
+  { key: 'dark-green', name: 'Dark Green', base: '#154734' },
+  { key: 'jade', name: 'Jade', base: '#487A7B' },
+  { key: 'muted-blue', name: 'Muted Blue', base: '#004f71' },
+  { key: 'muted-brown', name: 'Muted Brown', base: '#6d4f47' },
+  { key: 'spruce-grey', name: 'Spruce Grey', base: '#333f48' },
+];
+
+let currentTheme = PALETTE.find(p => p.key === 'uni-blue');
+
+// ================= Colour helpers =================
+function hexToRgb(hex) {
+  return [parseInt(hex.slice(1, 3), 16), parseInt(hex.slice(3, 5), 16), parseInt(hex.slice(5, 7), 16)];
+}
+function mixHex(hex, amount, towardWhite) {
+  const [r, g, b] = hexToRgb(hex);
+  const target = towardWhite ? 255 : 0;
+  const mix = (c) => Math.round(c + (target - c) * amount);
+  return '#' + [mix(r), mix(g), mix(b)].map(c => c.toString(16).padStart(2, '0')).join('');
+}
+function relativeLuminance(hex) {
+  const [r, g, b] = hexToRgb(hex).map(c => c / 255);
+  const lin = (c) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+function themeHoverColor(hex) {
+  return relativeLuminance(hex) < 0.12 ? mixHex(hex, 0.25, true) : mixHex(hex, 0.15, false);
+}
+function themeTintColor(hex) { return mixHex(hex, 0.92, true); }
+
+// ================= State =================
+let categoryCounter = 0;
+let itemCounter = 0;
+function makeCategory(label) { categoryCounter++; return { id: 'cat' + categoryCounter, label: label }; }
+function makeItem(word, categoryId) { itemCounter++; return { id: 'itm' + itemCounter, word: word, categoryId: categoryId }; }
+
+let categories = [makeCategory('Primary source'), makeCategory('Secondary source')];
+let items = [
+  makeItem('Diary entry written by a soldier during WWI', categories[0].id),
+  makeItem('Textbook chapter summarising the causes of WWI', categories[1].id),
+  makeItem('Photograph taken at the scene of an event', categories[0].id),
+  makeItem('Newspaper article analysing a historical event years later', categories[1].id),
+];
+
+// ================= Swatches =================
+const swatchesEl = document.getElementById('swatches');
+function renderSwatches() {
+  swatchesEl.innerHTML = '';
+  PALETTE.forEach(p => {
+    const sw = document.createElement('div');
+    sw.className = 'swatch' + (p.key === currentTheme.key ? ' active' : '');
+    sw.style.background = p.base;
+    sw.title = p.name;
+    sw.dataset.key = p.key;
+    sw.innerHTML = `<span class="swatch-tooltip">${p.name}</span>`;
+    sw.addEventListener('click', () => {
+      currentTheme = p;
+      document.querySelectorAll('.swatch').forEach(s => s.classList.remove('active'));
+      sw.classList.add('active');
+      renderPreview();
+    });
+    swatchesEl.appendChild(sw);
+  });
+}
+renderSwatches();
+
+// ================= Categories editor =================
+const categoriesContainer = document.getElementById('categoriesContainer');
+function renderCategories() {
+  categoriesContainer.innerHTML = '';
+  categories.forEach(cat => {
+    const row = document.createElement('div');
+    row.className = 'cat-row';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = cat.label;
+    input.addEventListener('input', () => { cat.label = input.value; refreshItemCategoryOptions(); renderPreview(); });
+    row.appendChild(input);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'row-remove';
+    removeBtn.innerHTML = '&times;';
+    removeBtn.title = 'Remove category';
+    removeBtn.addEventListener('click', () => {
+      if (categories.length <= 2) return;
+      const idx = categories.findIndex(c => c.id === cat.id);
+      categories.splice(idx, 1);
+      // reassign any orphaned items to the first remaining category
+      items.forEach(it => { if (it.categoryId === cat.id) it.categoryId = categories[0].id; });
+      renderCategories();
+      renderItems();
+      renderPreview();
+    });
+    row.appendChild(removeBtn);
+
+    categoriesContainer.appendChild(row);
+  });
+}
+
+document.getElementById('addCategoryBtn').addEventListener('click', () => {
+  categories.push(makeCategory('New category'));
+  renderCategories();
+  renderItems();
+  renderPreview();
+});
+
+function refreshItemCategoryOptions() {
+  document.querySelectorAll('.item-row select').forEach(sel => {
+    const itemId = sel.dataset.itemId;
+    const item = items.find(it => it.id === itemId);
+    if (!item) return;
+    sel.innerHTML = categories.map(c => `<option value="${c.id}"${c.id === item.categoryId ? ' selected' : ''}>${escapeHtml(c.label)}</option>`).join('');
+  });
+}
+
+// ================= Items editor =================
+const itemsContainer = document.getElementById('itemsContainer');
+function renderItems() {
+  itemsContainer.innerHTML = '';
+  items.forEach(item => {
+    const row = document.createElement('div');
+    row.className = 'item-row';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = item.word;
+    input.placeholder = 'Item text';
+    input.addEventListener('input', () => { item.word = input.value; renderPreview(); });
+    row.appendChild(input);
+
+    const select = document.createElement('select');
+    select.dataset.itemId = item.id;
+    select.innerHTML = categories.map(c => `<option value="${c.id}"${c.id === item.categoryId ? ' selected' : ''}>${escapeHtml(c.label)}</option>`).join('');
+    select.addEventListener('change', () => { item.categoryId = select.value; renderPreview(); });
+    row.appendChild(select);
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'row-remove';
+    removeBtn.innerHTML = '&times;';
+    removeBtn.title = 'Remove item';
+    removeBtn.addEventListener('click', () => {
+      items = items.filter(it => it.id !== item.id);
+      renderItems();
+      renderPreview();
+    });
+    row.appendChild(removeBtn);
+
+    itemsContainer.appendChild(row);
+  });
+
+  const warnEl = document.getElementById('itemsWarn');
+  const emptyCats = categories.filter(c => !items.some(it => it.categoryId === c.id));
+  if (emptyCats.length) {
+    warnEl.textContent = `Heads up: "${emptyCats.map(c => c.label).join('", "')}" has no items yet.`;
+    warnEl.classList.add('show');
+  } else {
+    warnEl.classList.remove('show');
+  }
+}
+
+document.getElementById('addItemBtn').addEventListener('click', () => {
+  items.push(makeItem('', categories[0].id));
+  renderItems();
+  renderPreview();
+});
+
+function getIdentityColors() {
+  return PALETTE.filter((p) => p.key !== currentTheme.key).map((p) => p.base);
+}
+
+function escapeHtml(str) {
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+const previewRoot = document.getElementById('previewRoot');
+
+function renderPreview() {
+  previewRoot.style.setProperty('--theme', currentTheme.base);
+  previewRoot.style.setProperty('--theme-rgb', hexToRgb(currentTheme.base).join(', '));
+  previewRoot.style.setProperty('--theme-hover', themeHoverColor(currentTheme.base));
+  previewRoot.style.setProperty('--theme-tint', themeTintColor(currentTheme.base));
+
+  if (categories.length < 2 || items.length === 0) {
+    previewRoot.innerHTML = '<p style="color:#777; font-size:0.9em;">Add at least 2 categories and some items to see the preview.</p>';
+    return;
+  }
+
+  const idColors = getIdentityColors();
+  const catList = categories.map((c) => ({ key: c.id, label: c.label || '(untitled category)' }));
+  const wordList = items.map((it, i) => ({
+    word: it.word || '(empty item)',
+    categoryKey: it.categoryId,
+    color: idColors[i % idColors.length],
+  }));
+
+  previewRoot.innerHTML =
+    '<p class="lt-cat-note">This activity uses small animations to help you track items as you sort them. ' +
+    'If you don\u2019t see any movement, animations may be turned off in your device\u2019s accessibility settings ' +
+    '\u2014 everything still works fully either way, just without the motion.</p>' +
+    '<div class="lt-cat-engine-root"></div>';
+  const engineRoot = previewRoot.querySelector('.lt-cat-engine-root');
+  initCategoriseWidget(engineRoot, catList, wordList);
+}
+
+// ================= The interactive engine =================
+// This function is reused two ways: called directly for the live preview
+// below, and embedded via .toString() into the exported HTML's own script
+// so the preview and the real embedded activity are guaranteed to run
+// identical logic — no separate "export version" to drift out of sync.
+// It must stay fully self-contained (no references to anything outside its
+// own parameters) since the exported copy runs with no access to this page.
+function initCategoriseWidget(root, CATEGORIES, WORDS) {
+  root.innerHTML =
+    '<div class="lt-cat-stage"><div class="lt-cat-stage-label">Sort this:</div>' +
+    '<div class="lt-cat-stage-pill"><span class="lt-cat-stage-word-text"></span></div></div>' +
+    '<div class="lt-cat-progress"></div>' +
+    '<div class="lt-cat-arrow"></div>' +
+    '<div class="lt-cat-categories"></div>' +
+    '<div class="lt-cat-controls"><button type="button" class="lt-cat-check-btn" disabled>Check answers</button>' +
+    '<div class="lt-cat-status" aria-live="polite"></div></div>';
+
+  const stageEl = root.querySelector('.lt-cat-stage');
+  const stageLabelEl = root.querySelector('.lt-cat-stage-label');
+  const stageWordPillEl = root.querySelector('.lt-cat-stage-pill');
+  const stageWordTextEl = root.querySelector('.lt-cat-stage-word-text');
+  const stageArrowEl = root.querySelector('.lt-cat-arrow');
+  const progressEl = root.querySelector('.lt-cat-progress');
+  const categoriesEl = root.querySelector('.lt-cat-categories');
+  const checkBtn = root.querySelector('.lt-cat-check-btn');
+  const statusEl = root.querySelector('.lt-cat-status');
+
+  function shuffle(arr) {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  const items = WORDS.map((w, i) => ({
+    id: i, word: w.word, categoryKey: w.categoryKey, placedIn: null, locked: false, color: w.color,
+  }));
+  let queue = shuffle(items.slice());
+  let currentItem = null;
+  let selectedForMove = null;
+  let isAnimating = false;
+
+  function lightenHex(hex, amount) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    const mix = (c) => Math.round(c + (255 - c) * amount);
+    return 'rgb(' + mix(r) + ', ' + mix(g) + ', ' + mix(b) + ')';
+  }
+
+  function celebrate() {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const colors = items.map((it) => it.color);
+    const pieceCount = 90;
+    for (let i = 0; i < pieceCount; i++) {
+      const piece = document.createElement('div');
+      piece.className = 'lt-cat-confetti-piece';
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      piece.style.background = color;
+      piece.style.left = (Math.random() * 100) + 'vw';
+      const duration = 2.2 + Math.random() * 1.6;
+      const delay = Math.random() * 0.5;
+      piece.style.setProperty('--drift', (Math.random() * 160 - 80) + 'px');
+      piece.style.setProperty('--spin', (Math.random() * 720 - 360) + 'deg');
+      piece.style.animationDuration = duration + 's';
+      piece.style.animationDelay = delay + 's';
+      if (Math.random() < 0.35) piece.style.borderRadius = '50%';
+      document.body.appendChild(piece);
+      setTimeout(() => piece.remove(), (duration + delay) * 1000 + 200);
+    }
+  }
+
+  function flyToLandedChip(word, color, fromRect, landedEl, onComplete) {
+    if (!fromRect || !landedEl) {
+      if (landedEl) landedEl.style.visibility = '';
+      onComplete();
+      return;
+    }
+    landedEl.style.visibility = 'hidden';
+    const toRect = landedEl.getBoundingClientRect();
+
+    const flyer = document.createElement('div');
+    flyer.className = 'lt-cat-flyer';
+    flyer.textContent = word;
+    flyer.style.setProperty('--flyer-color', color);
+    flyer.style.left = (fromRect.left + fromRect.width / 2) + 'px';
+    flyer.style.top = (fromRect.top + fromRect.height / 2) + 'px';
+    document.body.appendChild(flyer);
+    flyer.style.left = (fromRect.left + fromRect.width / 2 - flyer.offsetWidth / 2) + 'px';
+    flyer.style.top = (fromRect.top + fromRect.height / 2 - flyer.offsetHeight / 2) + 'px';
+    flyer.getBoundingClientRect();
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        flyer.style.left = (toRect.left + toRect.width / 2 - flyer.offsetWidth / 2) + 'px';
+        flyer.style.top = (toRect.top + toRect.height / 2 - flyer.offsetHeight / 2) + 'px';
+        flyer.style.opacity = '0.9';
+      });
+    });
+
+    let done = false;
+    function finish() {
+      if (done) return;
+      done = true;
+      flyer.remove();
+      landedEl.style.visibility = '';
+      landedEl.classList.add('just-landed');
+      landedEl.style.transition = 'none';
+      landedEl.style.backgroundColor = lightenHex(color, 0.6);
+      landedEl.getBoundingClientRect();
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          landedEl.style.transition = 'background-color 0.5s ease';
+          landedEl.style.backgroundColor = color;
+        });
+      });
+      onComplete();
+    }
+    flyer.addEventListener('transitionend', finish, { once: true });
+    setTimeout(finish, 500);
+  }
+
+  function nextWord() {
+    currentItem = queue.length ? queue.shift() : null;
+  }
+  nextWord();
+
+  function render() {
+    const remaining = queue.length + (currentItem ? 1 : 0);
+    if (currentItem) {
+      stageEl.classList.remove('done');
+      stageLabelEl.textContent = 'Sort this:';
+      stageWordTextEl.textContent = currentItem.word;
+      stageWordPillEl.style.backgroundColor = currentItem.color;
+      progressEl.textContent = remaining + ' item' + (remaining === 1 ? '' : 's') + ' left to sort';
+    } else {
+      stageEl.classList.add('done');
+      stageLabelEl.textContent = '';
+      stageWordTextEl.textContent = items.every((it) => it.locked)
+        ? 'All sorted and correct!'
+        : 'All items sorted — check your answers below.';
+      stageWordPillEl.style.backgroundColor = '';
+      progressEl.textContent = '';
+    }
+    checkBtn.disabled = !!currentItem || isAnimating;
+
+    const categoryActionActive = !!(selectedForMove || currentItem);
+    if (selectedForMove) {
+      stageArrowEl.style.display = '';
+      stageArrowEl.textContent = '\u2193 Pick a category to move "' + selectedForMove.word + '" to';
+    } else if (currentItem) {
+      stageArrowEl.style.display = '';
+      stageArrowEl.textContent = '\u2193 Pick a category below to place it';
+    } else {
+      stageArrowEl.style.display = 'none';
+    }
+
+    const actingWord = categoryActionActive ? (selectedForMove ? selectedForMove.word : currentItem.word) : null;
+    const verb = selectedForMove ? 'Move' : 'Place';
+    categoriesEl.innerHTML = '';
+    CATEGORIES.forEach((cat) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'lt-cat-category';
+
+      if (categoryActionActive) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'lt-cat-header-btn';
+        btn.setAttribute('aria-label', verb + ' "' + actingWord + '" into ' + cat.label);
+        btn.innerHTML = '<span class="lt-cat-plus-icon" aria-hidden="true">' + (selectedForMove ? '&#8646;' : '+') + '</span>' + cat.label;
+        btn.addEventListener('click', () => onCategoryClick(cat.key));
+        wrap.appendChild(btn);
+      } else {
+        const label = document.createElement('div');
+        label.className = 'lt-cat-label-static';
+        label.textContent = cat.label;
+        wrap.appendChild(label);
+      }
+
+      const itemsWrap = document.createElement('div');
+      itemsWrap.className = 'lt-cat-items';
+      itemsWrap.dataset.categoryKey = cat.key;
+      items.filter((it) => it.placedIn === cat.key).forEach((it) => {
+        if (it.locked) {
+          const chip = document.createElement('span');
+          chip.className = 'lt-cat-chip correct';
+          chip.dataset.itemId = it.id;
+          chip.textContent = it.word;
+          itemsWrap.appendChild(chip);
+        } else {
+          const isSelected = selectedForMove === it;
+          const chip = document.createElement('button');
+          chip.type = 'button';
+          chip.className = 'lt-cat-chip pending' + (isSelected ? ' selected' : '');
+          chip.dataset.itemId = it.id;
+          if (!isSelected) chip.style.backgroundColor = it.color;
+          chip.innerHTML = '<span class="lt-cat-move-icon" aria-hidden="true">&#8646;</span>' + it.word;
+          chip.setAttribute('aria-pressed', isSelected ? 'true' : 'false');
+          chip.setAttribute('aria-label', isSelected
+            ? (it.word + ', selected. Choose a category to move it to, or press again to cancel.')
+            : (it.word + ', currently in ' + cat.label + '. Press to select it for moving.'));
+          chip.addEventListener('click', () => onChipClick(it));
+          itemsWrap.appendChild(chip);
+        }
+      });
+      wrap.appendChild(itemsWrap);
+      categoriesEl.appendChild(wrap);
+    });
+  }
+
+  function onCategoryClick(catKey) {
+    if (isAnimating) return;
+
+    if (selectedForMove) {
+      const item = selectedForMove;
+      const destCat = CATEGORIES.find((c) => c.key === catKey);
+      const sourceEl = categoriesEl.querySelector('[data-item-id="' + item.id + '"]');
+      const fromRect = sourceEl ? sourceEl.getBoundingClientRect() : null;
+      isAnimating = true;
+      checkBtn.disabled = true;
+      item.placedIn = catKey;
+      selectedForMove = null;
+      render();
+      const landedEl = categoriesEl.querySelector('[data-item-id="' + item.id + '"]');
+      flyToLandedChip(item.word, item.color, fromRect, landedEl, () => {
+        isAnimating = false;
+        checkBtn.disabled = !!currentItem;
+        statusEl.textContent = item.word + ' moved to ' + destCat.label + '.';
+        statusEl.classList.remove('done');
+      });
+      return;
+    }
+
+    if (!currentItem) return;
+    const item = currentItem;
+    const fromRect = stageWordPillEl.getBoundingClientRect();
+    isAnimating = true;
+    item.placedIn = catKey;
+    nextWord();
+    render();
+    const landedEl = categoriesEl.querySelector('[data-item-id="' + item.id + '"]');
+    flyToLandedChip(item.word, item.color, fromRect, landedEl, () => {
+      isAnimating = false;
+      checkBtn.disabled = !!currentItem;
+      statusEl.textContent = currentItem
+        ? ('Placed. Next: ' + currentItem.word)
+        : 'All items sorted — ready to check.';
+      statusEl.classList.remove('done');
+    });
+  }
+
+  function onChipClick(item) {
+    if (isAnimating || item.locked) return;
+    selectedForMove = (selectedForMove === item) ? null : item;
+    render();
+    statusEl.textContent = selectedForMove
+      ? (selectedForMove.word + ' selected — choose a category to move it to.')
+      : 'Selection cleared.';
+    statusEl.classList.remove('done');
+  }
+
+  function checkAnswers() {
+    selectedForMove = null;
+    const wasAllDone = items.every((it) => it.locked);
+    let correctCount = 0;
+    const requeue = [];
+    items.forEach((it) => {
+      if (it.locked) { correctCount++; return; }
+      if (it.placedIn === null) return;
+      if (it.placedIn === it.categoryKey) {
+        it.locked = true;
+        correctCount++;
+      } else {
+        it.placedIn = null;
+        requeue.push(it);
+      }
+    });
+    queue = shuffle(requeue);
+    nextWord();
+    render();
+
+    const allDone = items.every((it) => it.locked);
+    statusEl.textContent = correctCount + ' of ' + items.length + ' correct.' + (allDone ? ' All correct!' : ' Try the rest again.');
+    statusEl.classList.toggle('done', allDone);
+    if (allDone && !wasAllDone) celebrate();
+  }
+
+  checkBtn.addEventListener('click', checkAnswers);
+  render();
+}
+
+// ================= Generate embed code =================
+// Builds the CSS text for export, scoped under the given class instead of
+// #previewRoot. Kept as a single template so the export and the live-preview
+// #previewRoot rules above stay easy to compare/keep in sync by eye.
+function buildWidgetCssForExport(scopeClass) {
+  const s = '.' + scopeClass;
+  return `
+${s} .lt-cat-note { background: #fff8e1; border: 1px solid #f0d98c; border-radius: 6px; padding: 10px 14px; font-size: 0.82em; color: #6b5900; margin: 0 0 16px; }
+${s} .lt-cat-stage { border: 2px solid var(--theme); background: var(--theme-tint); border-radius: 8px; padding: 18px; text-align: center; margin-bottom: 8px; min-height: 32px; }
+${s} .lt-cat-stage-label { font-size: 0.75em; font-weight: 600; color: var(--theme); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 6px; }
+${s} .lt-cat-stage-pill { display: inline-block; padding: 6px 16px; border-radius: 5px; background: var(--item-color, transparent); color: #fff; font-size: 1.05em; font-weight: 700; }
+${s} .lt-cat-stage.done .lt-cat-stage-pill { background: none; color: #666; font-size: 1em; font-weight: 400; padding: 0; }
+${s} .lt-cat-stage.done { border-style: dashed; background: #fafafa; color: #666; }
+${s} .lt-cat-progress { font-size: 0.85em; color: #666; text-align: center; margin-bottom: 10px; }
+${s} .lt-cat-arrow { text-align: center; color: var(--theme); font-weight: 600; font-size: 0.85em; margin-bottom: 16px; }
+@keyframes lt-cat-pulse-glow { 0%, 100% { box-shadow: 0 0 0 0 rgba(var(--theme-rgb), 0.45); } 50% { box-shadow: 0 0 0 7px rgba(var(--theme-rgb), 0); } }
+@keyframes lt-cat-pop-land { 0% { transform: scale(1.35); } 100% { transform: scale(1); } }
+@keyframes lt-cat-confetti-fall { 0% { transform: translateY(0) translateX(0) rotate(0deg); opacity: 0.95; } 100% { transform: translateY(110vh) translateX(var(--drift, 0px)) rotate(var(--spin, 360deg)); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  ${s} .lt-cat-header-btn { animation: none !important; }
+  .lt-cat-chip.just-landed { animation: none !important; }
+  .lt-cat-flyer { transition: none !important; }
+  .lt-cat-confetti-piece { display: none !important; }
+}
+${s} .lt-cat-categories { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; margin-bottom: 20px; }
+${s} .lt-cat-category { border: 1px solid #d7d7d5; border-radius: 8px; overflow: hidden; }
+${s} .lt-cat-header-btn { width: 100%; text-align: left; font: inherit; background: var(--theme); color: #fff; border: none; padding: 10px 14px; cursor: pointer; animation: lt-cat-pulse-glow 2s ease-in-out infinite; display: flex; align-items: center; gap: 8px; }
+${s} .lt-cat-header-btn:hover { background: var(--theme-hover); }
+${s} .lt-cat-header-btn:focus-visible { outline: 2px solid #1a1a1a; outline-offset: -2px; }
+${s} .lt-cat-plus-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 50%; background: rgba(255,255,255,0.25); font-size: 0.9em; flex-shrink: 0; }
+${s} .lt-cat-label-static { font-weight: 600; font-size: 0.95em; background: var(--theme); color: #fff; padding: 10px 14px; }
+${s} .lt-cat-items { padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 6px; min-height: 20px; }
+${s} .lt-cat-items:empty::after { content: "\\2014"; color: #ccc; }
+${s} .lt-cat-chip { padding: 4px 10px; border-radius: 4px; font-size: 0.88em; font-weight: 600; }
+${s} .lt-cat-chip.correct { background: #e6f2ec; border: 1px solid #154734; color: #154734; }
+${s} .lt-cat-chip.just-landed { animation: lt-cat-pop-land 0.35s ease-out; }
+${s} button.lt-cat-chip.pending { border: none; color: #fff; cursor: pointer; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1); display: inline-flex; align-items: center; gap: 5px; font-family: inherit; transition: background-color 0.5s ease; }
+${s} button.lt-cat-chip.pending:hover { filter: brightness(1.12); }
+${s} button.lt-cat-chip.pending:focus-visible { outline: 2px solid #1a1a1a; outline-offset: 2px; }
+${s} .lt-cat-move-icon { font-size: 0.9em; opacity: 0.85; }
+${s} button.lt-cat-chip.pending.selected { background: var(--theme) !important; box-shadow: none; }
+${s} button.lt-cat-chip.pending.selected:hover { background: var(--theme-hover) !important; }
+.lt-cat-flyer { position: fixed; z-index: 200; padding: 4px 10px; border-radius: 4px; font-size: 0.88em; font-weight: 600; color: #fff; background: var(--flyer-color, #487A7B); border: 2px solid var(--flyer-color, #487A7B); box-shadow: 0 4px 12px rgba(0,0,0,0.25); pointer-events: none; transition: left 0.4s cubic-bezier(0.3,0,0.2,1), top 0.4s cubic-bezier(0.3,0,0.2,1), opacity 0.4s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lt-cat-confetti-piece { position: fixed; top: -20px; width: 8px; height: 14px; opacity: 0.95; pointer-events: none; z-index: 300; animation-name: lt-cat-confetti-fall; animation-timing-function: cubic-bezier(0.4, 0, 0.6, 1); animation-fill-mode: forwards; }
+${s} .lt-cat-controls { display: flex; align-items: center; gap: 14px; }
+${s} .lt-cat-check-btn { background: var(--theme); color: #fff; border: none; border-radius: 6px; padding: 10px 18px; font: inherit; font-weight: 600; cursor: pointer; }
+${s} .lt-cat-check-btn:hover { background: var(--theme-hover); }
+${s} .lt-cat-check-btn:disabled { background: #ccc; cursor: default; }
+${s} .lt-cat-status { font-weight: 600; font-size: 0.95em; }
+${s} .lt-cat-status.done { color: #154734; }`;
+}
+
+function generateHtml() {
+  const outEl = document.getElementById('codeOut');
+  if (categories.length < 2) {
+    outEl.value = 'Add at least 2 categories before generating.';
+    return;
+  }
+  if (items.length === 0) {
+    outEl.value = 'Add at least one item before generating.';
+    return;
+  }
+
+  const uid = 'ltcat' + Math.random().toString(36).slice(2, 9);
+  const t = currentTheme.base;
+  const themeVars = `--theme: ${t}; --theme-rgb: ${hexToRgb(t).join(', ')}; --theme-hover: ${themeHoverColor(t)}; --theme-tint: ${themeTintColor(t)};`;
+  const idColors = getIdentityColors();
+
+  const catList = categories.map((c) => ({ key: c.id, label: c.label || '(untitled category)' }));
+  const wordList = items.map((it, i) => ({
+    word: it.word || '(empty item)',
+    categoryKey: it.categoryId,
+    color: idColors[i % idColors.length],
+  }));
+
+  const html = `<div class="${uid}">
+<style>
+.${uid} { ${themeVars} font-family: 'Source Sans 3', Arial, sans-serif; max-width: 900px; }
+${buildWidgetCssForExport(uid)}
+</style>
+<div class="lt-cat-note">This activity uses small animations to help you track items as you sort them. If you don't see any movement, animations may be turned off in your device's accessibility settings — everything still works fully either way, just without the motion.</div>
+<div class="lt-cat-stage"><div class="lt-cat-stage-label">Sort this:</div><div class="lt-cat-stage-pill"><span class="lt-cat-stage-word-text"></span></div></div>
+<div class="lt-cat-progress"></div>
+<div class="lt-cat-arrow"></div>
+<div class="lt-cat-categories"></div>
+<div class="lt-cat-controls"><button type="button" class="lt-cat-check-btn" disabled>Check answers</button><div class="lt-cat-status" aria-live="polite"></div></div>
+</div>
+<script>
+(function() {
+  var root = document.querySelector('.${uid}');
+  var CATEGORIES = ${JSON.stringify(catList)};
+  var WORDS = ${JSON.stringify(wordList)};
+  var initFn = ${initCategoriseWidget.toString()};
+  // The engine normally builds its own inner HTML into root; here that
+  // markup already exists above (so it renders even if JS is briefly
+  // delayed), so we let initFn overwrite it immediately - same result.
+  initFn(root, CATEGORIES, WORDS);
+})();
+<\/script>`;
+
+  outEl.value = html;
+}
+
+// ================= Word handout export =================
+function downloadHandout() {
+  if (categories.length < 2 || items.length === 0) return;
+  let body = '<h1>Categorisation activity</h1><p>Sort each item below into the correct category, then check the answer key.</p>';
+  body += '<table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;"><tr><th>Item</th><th>Category (fill in)</th></tr>';
+  items.forEach((it) => {
+    body += `<tr><td>${escapeHtml(it.word || '(empty item)')}</td><td></td></tr>`;
+  });
+  body += '</table><h2>Answer key</h2><table border="1" cellpadding="6" cellspacing="0" style="border-collapse:collapse;width:100%;"><tr><th>Item</th><th>Correct category</th></tr>';
+  items.forEach((it) => {
+    const cat = categories.find((c) => c.id === it.categoryId);
+    body += `<tr><td>${escapeHtml(it.word || '(empty item)')}</td><td>${escapeHtml(cat ? cat.label : '')}</td></tr>`;
+  });
+  body += '</table>';
+
+  const docHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="utf-8"><title>Categorisation activity</title></head>
+<body style="font-family:Calibri, Arial, sans-serif;">${body}</body></html>`;
+
+  const blob = new Blob(['\ufeff', docHtml], { type: 'application/msword' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = 'categorisation-activity.doc';
+  link.click();
+}
+
+document.getElementById('generateBtn').addEventListener('click', generateHtml);
+document.getElementById('downloadDocBtn').addEventListener('click', downloadHandout);
+
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const outEl = document.getElementById('codeOut');
+  if (!outEl.value) return;
+  outEl.select();
+  navigator.clipboard.writeText(outEl.value).then(() => {
+    const msg = document.getElementById('copiedMsg');
+    msg.classList.add('show');
+    setTimeout(() => msg.classList.remove('show'), 2000);
+  });
+});
+
+// ================= Import existing content =================
+// Extracts a JSON array/object embedded in surrounding non-JSON text (e.g.
+// `var CATEGORIES = [...];` inside a <script> block), by scanning bracket
+// depth and respecting quoted strings rather than assuming a delimiter like
+// ";" never appears inside the data itself (item text legitimately can
+// contain semicolons).
+function extractJsonAfter(text, marker) {
+  const start = text.indexOf(marker);
+  if (start === -1) return null;
+  let i = start + marker.length;
+  while (i < text.length && /\s/.test(text[i])) i++;
+  const jsonStart = i;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) { escaped = false; }
+      else if (ch === '\\') { escaped = true; }
+      else if (ch === '"') { inString = false; }
+      continue;
+    }
+    if (ch === '"') { inString = true; continue; }
+    if (ch === '[' || ch === '{') depth++;
+    else if (ch === ']' || ch === '}') {
+      depth--;
+      if (depth === 0) { i++; break; }
+    }
+  }
+  const jsonText = text.slice(jsonStart, i);
+  try { return JSON.parse(jsonText); } catch (e) { return null; }
+}
+
+// This tool's exported CSS states the theme hex once, in a --theme custom
+// property, then references it symbolically via var(--theme) everywhere
+// else — unlike the other builders, which repeat the literal hex throughout
+// their CSS. The "most frequent hex" trick that works for those doesn't
+// apply here, so read the custom property directly instead.
+function extractThemeVarHex(styleText) {
+  const m = styleText.match(/--theme:\s*(#[0-9a-fA-F]{3,8})/i);
+  return m ? m[1].toLowerCase() : null;
+}
+
+function importFromHtml(html) {
+  const statusEl = document.getElementById('importStatus');
+  statusEl.classList.remove('success', 'error');
+  try {
+    const catList = extractJsonAfter(html, 'var CATEGORIES = ');
+    const wordList = extractJsonAfter(html, 'var WORDS = ');
+    if (!catList || !catList.length) throw new Error('No categories found');
+    if (!wordList || !wordList.length) throw new Error('No items found');
+
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    const styleText = Array.from(doc.querySelectorAll('style')).map((s) => s.textContent).join('\n');
+    const themeHex = extractThemeVarHex(styleText);
+    const matchedTheme = themeHex ? PALETTE.find((p) => p.base.toLowerCase() === themeHex) : null;
+
+    const newCategories = catList.map((c) => makeCategory(c.label));
+    const oldKeyToNewId = {};
+    catList.forEach((c, i) => { oldKeyToNewId[c.key] = newCategories[i].id; });
+
+    const newItems = wordList.map((w) => makeItem(w.word, oldKeyToNewId[w.categoryKey] || newCategories[0].id));
+
+    categories = newCategories;
+    items = newItems;
+    if (matchedTheme) currentTheme = matchedTheme;
+
+    renderSwatches();
+    renderCategories();
+    renderItems();
+    renderPreview();
+
+    statusEl.textContent = `Loaded ${newCategories.length} categories and ${newItems.length} item${newItems.length === 1 ? '' : 's'}` +
+      (matchedTheme ? '' : ' — colour theme not recognised, left as-is') + '.';
+    statusEl.classList.add('success', 'show');
+  } catch (err) {
+    statusEl.textContent = "Couldn't read that as categorisation HTML — check you've pasted the exact code this tool generated, with nothing removed.";
+    statusEl.classList.add('error', 'show');
+  }
+}
+
+document.getElementById('importBtn').addEventListener('click', () => {
+  const fileInput = document.getElementById('importFile');
+  const pasted = document.getElementById('importPaste').value.trim();
+  if (fileInput.files && fileInput.files[0]) {
+    const reader = new FileReader();
+    reader.onload = () => importFromHtml(reader.result);
+    reader.readAsText(fileInput.files[0]);
+  } else if (pasted) {
+    importFromHtml(pasted);
+  } else {
+    const statusEl = document.getElementById('importStatus');
+    statusEl.classList.remove('success');
+    statusEl.textContent = 'Choose a file or paste HTML first.';
+    statusEl.classList.add('error', 'show');
+  }
+});
+
+// ================= Initial render =================
+renderCategories();
+renderItems();
+renderPreview();
+</script>
+</body>
+</html>
