@@ -1,0 +1,933 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Course export converter</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@500;600&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+:root {
+  --green: #154734;      /* University dark green: primary */
+  --green-hover: #092017;
+  --green-link: #f2ca27;
+  --jade: #487A7B;       /* secondary, tree guides */
+  --burgundy: #a50034;   /* errors */
+  --ink: #1f262b;
+  --muted: #4f5b63;
+  --paper: #ffffff;
+  --wash: #f2f5f3;       /* panels */
+  --rule: #c9d3ce;
+  --notice: #fbf6e3;
+  --notice-rule: #c9a227;
+  --serif: "Crimson Pro", Georgia, "Times New Roman", serif;
+  --sans: "Source Sans 3", "Segoe UI", Arial, sans-serif;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --green: #5fa98a; --green-hover: #7fc4a6; --jade: #7fb3b4; --burgundy: #ff7a9a;
+    --ink: #e8ecea; --muted: #b3bdb8; --paper: #121816; --wash: #1b2421; --rule: #33413b;
+    --notice: #2a2617; --notice-rule: #b8952a;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font: 400 1.0625rem/1.55 var(--sans);
+}
+.wrap { max-width: 46rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+header h1 {
+  font: 600 clamp(2.2rem, 6vw, 3.1rem)/1.05 var(--serif);
+  color: var(--green); margin: 0 0 .75rem; letter-spacing: -.01em;
+}
+header p { margin: 0; max-width: 36rem; color: var(--muted); font-size: 1.125rem; }
+a { color: var(--green); text-underline-offset: .15em; }
+a:hover { color: var(--green-hover); }
+
+/* steps: a real sequence, so numbered */
+ol.steps { list-style: none; margin: 2.75rem 0 0; padding: 0; counter-reset: step; }
+.step {
+  counter-increment: step; position: relative;
+  padding: 0 0 2.5rem 3.5rem; margin: 0;
+  border-left: 2px solid var(--rule); margin-left: 1.1rem; padding-left: 2.4rem;
+}
+.step:last-child { border-left-color: transparent; padding-bottom: 0; }
+.step::before {
+  content: counter(step);
+  position: absolute; left: -1.15rem; top: -.35rem;
+  width: 2.2rem; height: 2.2rem; border-radius: 50%;
+  display: grid; place-items: center;
+  font: 600 1.35rem/1 var(--serif);
+  background: var(--paper); color: var(--green); border: 2px solid var(--green);
+}
+.step.done::before { background: var(--green); color: var(--paper); content: "\2713"; font-family: var(--sans); font-size: 1.05rem; }
+.step[aria-disabled="true"] > *:not(h2) { display: none; }
+.step[aria-disabled="true"] h2 { color: var(--muted); }
+.step[aria-disabled="true"]::before { color: var(--muted); border-color: var(--rule); }
+.step h2 { font: 600 1.6rem/1.2 var(--serif); margin: 0 0 .9rem; color: var(--ink); }
+.step h2:focus { outline: none; }
+.step p { margin: 0 0 1rem; }
+.hint { color: var(--muted); font-size: .97rem; }
+
+/* drop zone */
+.drop {
+  display: block; border: 2px dashed var(--rule); border-radius: 10px;
+  padding: 1.6rem 1.4rem; background: var(--wash); cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.drop.over { border-color: var(--green); border-style: solid; }
+.drop strong { display: block; font-size: 1.1rem; margin-bottom: .25rem; }
+.drop .hint { margin: 0; }
+.drop input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.drop:focus-within { outline: 3px solid var(--green); outline-offset: 3px; }
+.chosen { margin: 1rem 0 0; font-weight: 600; word-break: break-word; }
+
+details { margin: 1rem 0 0; }
+summary { cursor: pointer; color: var(--green); font-weight: 600; }
+summary:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; border-radius: 2px; }
+details > div { padding: .6rem 0 0 1.1rem; border-left: 2px solid var(--rule); margin: .5rem 0 0 .3rem; }
+details > div p:last-child { margin-bottom: 0; }
+
+.check { display: flex; gap: .6rem; align-items: flex-start; margin: 1.1rem 0 0; }
+.check input { width: 1.15rem; height: 1.15rem; margin: .2rem 0 0; accent-color: var(--green); flex: none; }
+
+/* buttons */
+.btns { display: flex; flex-wrap: wrap; gap: .75rem; margin: 1rem 0 0; }
+button {
+  font: 600 1.02rem/1.2 var(--sans); padding: .75rem 1.25rem; border-radius: 6px; cursor: pointer;
+  border: 2px solid var(--green); background: var(--green); color: #fff;
+}
+@media (prefers-color-scheme: dark) { button { color: #0d1411; } }
+button:hover { background: var(--green-hover); border-color: var(--green-hover); }
+button.secondary { background: transparent; color: var(--green); }
+button.secondary:hover { background: var(--wash); color: var(--green-hover); }
+button:focus-visible { outline: 3px solid var(--green); outline-offset: 3px; }
+button[disabled] { opacity: .55; cursor: progress; }
+
+/* progress */
+.progress { margin: 1.1rem 0 0; }
+.progress[hidden] { display: none; }
+.bar { height: .5rem; background: var(--wash); border-radius: 99px; overflow: hidden; border: 1px solid var(--rule); }
+.bar span { display: block; height: 100%; width: 0; background: var(--green); transition: width .2s; }
+.progress p { margin: .45rem 0 0; color: var(--muted); font-size: .95rem; }
+
+.error { border-left: 4px solid var(--burgundy); padding: .6rem .9rem; margin: 1rem 0 0; background: var(--wash); }
+.error strong { color: var(--burgundy); }
+
+/* review */
+.course-title { font: 500 1.35rem/1.3 var(--serif); margin: 0 0 .2rem; }
+.counts { color: var(--muted); margin: 0 0 1.2rem; }
+.notices { list-style: none; padding: 0; margin: 0 0 1.4rem; }
+.notices li {
+  background: var(--notice); border-left: 4px solid var(--notice-rule);
+  padding: .65rem .9rem; margin: 0 0 .5rem; border-radius: 0 4px 4px 0;
+}
+.notices li strong { display: block; }
+
+/* the folder tree: the one memorable thing */
+.tree {
+  border: 1px solid var(--rule); border-radius: 10px; padding: 1rem 1.1rem 1.1rem;
+  background: var(--wash); font-size: .98rem; overflow-x: auto;
+}
+.tree-root { font-weight: 700; display: flex; gap: .5rem; align-items: center; margin: 0 0 .4rem; }
+.tree ul { list-style: none; margin: 0; padding: 0 0 0 1.05rem; border-left: 1px solid var(--jade); }
+.tree li { position: relative; padding: .18rem 0 .18rem .9rem; }
+.tree li::before { content: ""; position: absolute; left: 0; top: .95rem; width: .65rem; border-top: 1px solid var(--jade); }
+.tree details { margin: 0; }
+.tree summary { color: var(--ink); font-weight: 600; list-style: none; display: flex; gap: .45rem; align-items: baseline; }
+.tree summary::-webkit-details-marker { display: none; }
+.tree summary::before { content: "\25B8"; color: var(--jade); font-size: .8rem; width: .7rem; flex: none; transition: transform .15s; }
+.tree details[open] > summary::before { transform: rotate(90deg); }
+.tree summary .n { color: var(--muted); font-weight: 400; white-space: nowrap; }
+.tree details > ul { margin: .2rem 0 .3rem .3rem; padding-top: 0; }
+.ico { display: inline-block; width: 1.15rem; text-align: center; flex: none; }
+.file { display: flex; gap: .45rem; align-items: baseline; }
+.file .kind { color: var(--muted); font-size: .88rem; white-space: nowrap; }
+
+.done-msg { border-left: 4px solid var(--green); padding: .7rem 1rem; background: var(--wash); margin: 1.1rem 0 0; }
+.done-msg p { margin: 0 0 .3rem; }
+.done-msg p:last-child { margin: 0; }
+
+footer { margin: 4rem 0 0; padding-top: 1.2rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: .92rem; }
+footer p { margin: 0 0 .3rem; }
+
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+@media (max-width: 34rem) {
+  .wrap { padding-top: 2rem; }
+  .step { padding-left: 1.7rem; }
+  .btns button { flex: 1 1 100%; }
+  .file .kind { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <h1>Course export converter</h1>
+  <p>Turn a Learn Ultra course export into Word documents and files a student can download and keep. Everything happens in your browser, so the course files are never uploaded anywhere.</p>
+</header>
+
+<main>
+<ol class="steps">
+  <li class="step" id="step1">
+    <h2 id="h1" tabindex="-1">Choose the export file</h2>
+    <label class="drop" id="drop">
+      <strong>Drop the export zip here</strong>
+      <span class="hint">Or click here, or use the button below. It is usually named like ExportFile_COURSECODE_date.zip</span>
+      <input type="file" id="file" accept=".zip,application/zip">
+    </label>
+    <div class="btns"><button type="button" id="chooseBtn">Choose export file</button></div>
+    <p class="chosen" id="chosen" hidden></p>
+    <div class="progress" id="prog" hidden>
+      <div class="bar" aria-hidden="true"><span id="barFill"></span></div>
+      <p id="progText" role="status" aria-live="polite"></p>
+    </div>
+    <div id="err1"></div>
+    <label class="check"><input type="checkbox" id="staff"> <span>Include staff-only folders (any top-level folder with "staff" in its name). Leave this unticked for anything going to students.</span></label>
+    <details>
+      <summary>How do I export a course from Learn?</summary>
+      <div>
+        <p>In your Ultra course, open the More options menu (⋯) at the top of Course Content and choose Export course. Learn prepares the package in the background. When it's ready, download the zip file it creates.</p>
+        <p>Use the export exactly as you downloaded it. Don't unzip it first.</p>
+      </div>
+    </details>
+  </li>
+
+  <li class="step" id="step2" aria-disabled="true">
+    <h2 id="h2" tabindex="-1">Check what was found</h2>
+    <p class="course-title" id="courseTitle"></p>
+    <p class="counts" id="counts"></p>
+    <ul class="notices" id="notices"></ul>
+    <div class="tree" id="tree"></div>
+  </li>
+
+  <li class="step" id="step3" aria-disabled="true">
+    <h2 id="h3" tabindex="-1">Save the files</h2>
+    <p id="saveIntro"></p>
+    <div class="btns">
+      <button type="button" id="saveFolder">Save to a folder</button>
+      <button type="button" class="secondary" id="saveZip">Save as a zip</button>
+    </div>
+    <p class="hint" id="saveHint"></p>
+    <div class="progress" id="prog3" hidden>
+      <div class="bar" aria-hidden="true"><span id="barFill3"></span></div>
+      <p id="progText3" role="status" aria-live="polite"></p>
+    </div>
+    <div id="err3"></div>
+    <div id="doneMsg"></div>
+  </li>
+</ol>
+</main>
+
+<footer>
+  <p>Works with Blackboard Learn Ultra course exports. Reading lists, videos, discussions and submissions stay on Learn; the documents explain where to find each one.</p>
+  <p>Part of <a href="https://mattoteacher.github.io/learn-tools/">learn-tools</a>.</p>
+</footer>
+</div>
+
+<script>
+/* ===== Blackboard Ultra export converter: core engine =====
+   Needs: JSZip and DOMParser. Runs entirely in the browser. */
+const BBConvert = (() => {
+  const IMG_EXT = /\.(png|jpe?g|gif)$/i;
+  const escXml = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const escHtml = escXml;
+  const pad2 = n => String(n).padStart(2, '0');
+
+  function safe(name, limit = 70) {
+    let n = String(name).replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim().replace(/\.+$/, '');
+    let m = n.match(/^(.*?)(\.[A-Za-z0-9]{1,5})$/);
+    let stem = m ? m[1] : n, ext = m ? m[2] : '';
+    if (stem.length > limit) {
+      stem = stem.slice(0, limit);
+      const sp = stem.lastIndexOf(' ');
+      if (sp > 10) stem = stem.slice(0, sp);
+      stem = stem.replace(/[\s\-,.]+$/, '');
+    }
+    return stem + ext;
+  }
+
+  function imgSize(b) {
+    try {
+      if (b[0] === 0x89 && b[1] === 0x50) return [(b[16] << 24 | b[17] << 16 | b[18] << 8 | b[19]) >>> 0, (b[20] << 24 | b[21] << 16 | b[22] << 8 | b[23]) >>> 0];
+      if (b[0] === 0x47 && b[1] === 0x49) return [b[6] | b[7] << 8, b[8] | b[9] << 8];
+      if (b[0] === 0xFF && b[1] === 0xD8) {
+        let i = 2;
+        while (i < b.length) {
+          if (b[i] !== 0xFF) { i++; continue; }
+          const mk = b[i + 1], len = b[i + 2] << 8 | b[i + 3];
+          if (mk >= 0xC0 && mk <= 0xCF && ![0xC4, 0xC8, 0xCC].includes(mk)) return [b[i + 7] << 8 | b[i + 8], b[i + 5] << 8 | b[i + 6]];
+          i += 2 + len;
+        }
+      }
+    } catch (e) {}
+    return [800, 450];
+  }
+
+  /* ---------------- DOCX writer ---------------- */
+  const BLOCK = new Set(['P', 'DIV', 'SECTION', 'ARTICLE', 'HEADER', 'FOOTER', 'MAIN', 'ASIDE', 'NAV', 'CENTER', 'FIGURE', 'BLOCKQUOTE',
+    'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'UL', 'OL', 'LI', 'TABLE', 'HR', 'PRE', 'DL', 'DT', 'DD', 'FIGCAPTION']);
+  const PAGE_W = 9026; // A4 text width in twips (1" margins)
+
+  function makeDocx(htmlString, title, ctx) {
+    // ctx: { readImage: path -> Uint8Array|null }
+    const doc = new DOMParser().parseFromString(`<!DOCTYPE html><html><body>${htmlString}</body></html>`, 'text/html');
+    const rels = [], media = [];
+    let relN = 10, picN = 1, numN = 2; // num 1 = bullets; ordered lists get their own num
+    const nums = [];
+    const out = [];
+
+    const runXml = (text, f) => {
+      let rpr = '';
+      if (f.link) rpr += '<w:rStyle w:val="Hyperlink"/>';
+      if (f.b) rpr += '<w:b/>';
+      if (f.i) rpr += '<w:i/>';
+      if (f.u && !f.link) rpr += '<w:u w:val="single"/>';
+      if (f.sup) rpr += '<w:vertAlign w:val="superscript"/>';
+      if (f.sub) rpr += '<w:vertAlign w:val="subscript"/>';
+      return `<w:r>${rpr ? `<w:rPr>${rpr}</w:rPr>` : ''}<w:t xml:space="preserve">${escXml(text)}</w:t></w:r>`;
+    };
+
+    function imageRun(img) {
+      const path = img.getAttribute('data-zip');
+      const bytes = path && ctx.readImage(path);
+      if (!bytes) return '';
+      const ext = (path.match(IMG_EXT) || ['', 'png'])[1].toLowerCase().replace('jpg', 'jpeg');
+      const fname = `image${picN}.${ext}`;
+      media.push({ name: fname, data: bytes });
+      const rid = `rId${relN++}`;
+      rels.push(`<Relationship Id="${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${fname}"/>`);
+      let [w, h] = imgSize(bytes);
+      const maxW = 5486400, emu = 9525;
+      let cx = w * emu, cy = h * emu;
+      if (cx > maxW) { cy = Math.round(cy * maxW / cx); cx = maxW; }
+      const alt = escXml(img.getAttribute('alt') || '');
+      const id = picN++;
+      return `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${id}" name="Picture ${id}" descr="${alt}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${id}" name="${fname}" descr="${alt}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>`;
+    }
+
+    // Collect inline content into a list of pieces: {t:text,f} | {xml} | {br}
+    function inlines(node, f, pieces) {
+      for (const c of node.childNodes) {
+        if (c.nodeType === 3) { pieces.push({ t: c.nodeValue.replace(/\s+/g, ' '), f }); continue; }
+        if (c.nodeType !== 1) continue;
+        const tag = c.tagName;
+        if (tag === 'BR') { pieces.push({ br: true }); continue; }
+        if (tag === 'IMG') { const x = imageRun(c); if (x) pieces.push({ xml: x }); continue; }
+        if (tag === 'SCRIPT' || tag === 'STYLE') continue;
+        const nf = Object.assign({}, f);
+        if (tag === 'STRONG' || tag === 'B' || tag === 'TH') nf.b = true;
+        if (tag === 'EM' || tag === 'I') nf.i = true;
+        if (tag === 'U') nf.u = true;
+        if (tag === 'SUP') nf.sup = true;
+        if (tag === 'SUB') nf.sub = true;
+        if (tag === 'A') {
+          const href = c.getAttribute('href') || '';
+          if (/^(https?:|mailto:)/i.test(href)) {
+            const rid = `rId${relN++}`;
+            rels.push(`<Relationship Id="${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" Target="${escXml(href)}" TargetMode="External"/>`);
+            const sub = [];
+            inlines(c, Object.assign({}, nf, { link: true }), sub);
+            pieces.push({ link: rid, sub });
+            continue;
+          }
+        }
+        inlines(c, nf, pieces);
+      }
+    }
+
+    function piecesXml(pieces) {
+      // trim leading/trailing whitespace across the paragraph
+      const flat = [];
+      const walk = (ps) => ps.forEach(p => p.sub ? walk(p.sub) : flat.push(p));
+      walk(pieces);
+      const texts = flat.filter(p => p.t !== undefined);
+      if (texts.length) { texts[0].t = texts[0].t.replace(/^\s+/, ''); texts[texts.length - 1].t = texts[texts.length - 1].t.replace(/\s+$/, ''); }
+      const hasContent = flat.some(p => (p.t && p.t.trim()) || p.xml);
+      if (!hasContent) return null;
+      const render = ps => ps.map(p => p.sub ? `<w:hyperlink r:id="${p.link}" w:history="1">${render(p.sub)}</w:hyperlink>`
+        : p.xml ? p.xml : p.br ? '<w:r><w:br/></w:r>' : (p.t ? runXml(p.t, p.f) : '')).join('');
+      // drop trailing breaks
+      return render(pieces).replace(/(<w:r><w:br\/><\/w:r>)+$/, '');
+    }
+
+    function para(pieces, ppr = '') {
+      const x = piecesXml(pieces);
+      if (x === null) return '';
+      return `<w:p>${ppr ? `<w:pPr>${ppr}</w:pPr>` : ''}${x}</w:p>`;
+    }
+
+    function blocks(node, list) {
+      // list: {num, lvl} when inside list item
+      let buf = [];
+      const res = [];
+      const flush = () => { if (buf.length) { const tmp = []; buf.forEach(n => inlinesOne(n, tmp)); res.push(para(tmp, list ? listPpr(list) : '')); buf = []; } };
+      const inlinesOne = (n, tmp) => { const wrap = doc.createElement('span'); wrap.appendChild(n.cloneNode(true)); inlines(wrap, {}, tmp); };
+      for (const c of node.childNodes) {
+        if (c.nodeType === 1 && BLOCK.has(c.tagName)) {
+          flush();
+          res.push(block(c, list));
+        } else if (c.nodeType === 1 || (c.nodeType === 3 && c.nodeValue.trim())) {
+          if (!(c.nodeType === 1 && c.tagName === 'BR' && !buf.length)) buf.push(c);
+        }
+      }
+      flush();
+      return res.join('');
+    }
+
+    const listPpr = l => `<w:pStyle w:val="ListParagraph"/><w:numPr><w:ilvl w:val="${Math.min(l.lvl, 8)}"/><w:numId w:val="${l.num}"/></w:numPr>`;
+
+    function block(el, list) {
+      const tag = el.tagName;
+      if (/^H[1-6]$/.test(tag)) { const p = []; inlines(el, {}, p); return para(p, `<w:pStyle w:val="Heading${tag[1]}"/>`); }
+      if (tag === 'P' || tag === 'DT' || tag === 'FIGCAPTION') {
+        if ([...el.children].some(k => BLOCK.has(k.tagName))) return blocks(el, list);
+        const p = []; inlines(el, {}, p); return para(p, list ? listPpr(list) : '');
+      }
+      if (tag === 'PRE') { const p = [{ t: el.textContent, f: {} }]; return para(p); }
+      if (tag === 'HR') return '<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="808080"/></w:pBdr></w:pPr></w:p>';
+      if (tag === 'UL' || tag === 'OL') {
+        let num = 1;
+        if (tag === 'OL') { num = numN++; nums.push(num); }
+        const lvl = list ? list.lvl + 1 : 0;
+        // nested lists keep bullet/number type of their own tag
+        return [...el.childNodes].map(k => k.nodeType !== 1 ? (k.nodeValue.trim() ? para([{ t: k.nodeValue, f: {} }], listPpr({ num, lvl })) : '') : k.tagName === 'LI' ? blocks(k, { num, lvl }) : (k.tagName === 'UL' || k.tagName === 'OL') ? block(k, { num, lvl }) : blocks(k, { num, lvl })).join('');
+      }
+      if (tag === 'LI') return blocks(el, list || { num: 1, lvl: 0 });
+      if (tag === 'TABLE') return table(el);
+      if (tag === 'DD' || tag === 'BLOCKQUOTE') return blocks(el, list);
+      return blocks(el, list);
+    }
+
+    function table(el) {
+      const rows = [...el.querySelectorAll('tr')].filter(r => r.closest('table') === el);
+      if (!rows.length) return '';
+      const ncol = Math.max(...rows.map(r => [...r.children].filter(c => /^T[DH]$/.test(c.tagName)).reduce((a, c) => a + (parseInt(c.getAttribute('colspan')) || 1), 0)), 1);
+      const cw = Math.floor(PAGE_W / ncol);
+      let x = `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="${cw * ncol}" w:type="dxa"/><w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr><w:tblGrid>${('<w:gridCol w:w="' + cw + '"/>').repeat(ncol)}</w:tblGrid>`;
+      rows.forEach((r, ri) => {
+        const cells = [...r.children].filter(c => /^T[DH]$/.test(c.tagName));
+        const isHead = ri === 0 && (cells.every(c => c.tagName === 'TH') || r.closest('thead'));
+        x += `<w:tr>${isHead ? '<w:trPr><w:tblHeader/></w:trPr>' : ''}`;
+        let used = 0;
+        cells.forEach(c => {
+          const span = parseInt(c.getAttribute('colspan')) || 1; used += span;
+          let inner = blocks(c, null);
+          if (c.tagName === 'TH' && !inner.includes('<w:b/>')) inner = inner.replace(/<w:r>(<w:rPr>)?/g, (m, rp) => rp ? '<w:r><w:rPr><w:b/>' : '<w:r><w:rPr><w:b/></w:rPr>');
+          x += `<w:tc><w:tcPr><w:tcW w:w="${cw * span}" w:type="dxa"/>${span > 1 ? `<w:gridSpan w:val="${span}"/>` : ''}</w:tcPr>${inner || '<w:p/>'}</w:tc>`;
+        });
+        for (; used < ncol; used++) x += `<w:tc><w:tcPr><w:tcW w:w="${cw}" w:type="dxa"/></w:tcPr><w:p/></w:tc>`;
+        x += '</w:tr>';
+      });
+      return x + '</w:tbl><w:p/>';
+    }
+
+    out.push(`<w:p><w:pPr><w:pStyle w:val="Title"/></w:pPr>${runXml(title, {})}</w:p>`);
+    out.push(blocks(doc.body, null));
+
+    const body = out.join('');
+    const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><w:body>${body}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+
+    const zip = new JSZip();
+    zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpeg" ContentType="image/jpeg"/><Default Extension="gif" ContentType="image/gif"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>`);
+    zip.file('_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>`);
+    zip.file('docProps/core.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${escXml(title)}</dc:title><dc:language>en-GB</dc:language></cp:coreProperties>`);
+    zip.file('word/_rels/document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>${rels.join('')}</Relationships>`);
+    zip.file('word/settings.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:defaultTabStop w:val="720"/><w:characterSpacingControl w:val="doNotCompress"/></w:settings>`);
+    zip.file('word/styles.xml', STYLES);
+    zip.file('word/numbering.xml', numbering(nums));
+    zip.file('word/document.xml', docXml);
+    media.forEach(m => zip.file(`word/media/${m.name}`, m.data));
+    return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' });
+  }
+
+  function numbering(olNums) {
+    const lvls = (fmt) => Array.from({ length: 9 }, (_, i) => {
+      const bullet = ['•', '◦', '▪'][i % 3];
+      const text = fmt === 'bullet' ? bullet : `%${i + 1}.`;
+      const f = fmt === 'bullet' ? 'bullet' : ['decimal', 'lowerLetter', 'lowerRoman'][i % 3];
+      return `<w:lvl w:ilvl="${i}"><w:start w:val="1"/><w:numFmt w:val="${f}"/><w:lvlText w:val="${text}"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="${720 + i * 360}" w:hanging="360"/></w:pPr>${fmt === 'bullet' ? '<w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/></w:rPr>' : ''}</w:lvl>`;
+    }).join('');
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="0"><w:multiLevelType w:val="hybridMultilevel"/>${lvls('bullet')}</w:abstractNum><w:abstractNum w:abstractNumId="1"><w:multiLevelType w:val="hybridMultilevel"/>${lvls('decimal')}</w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>${olNums.map(n => `<w:num w:numId="${n}"><w:abstractNumId w:val="1"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="1"/></w:lvlOverride></w:num>`).join('')}</w:numbering>`;
+  }
+
+  const hStyle = (n, sz, extra = '') => `<w:style w:type="paragraph" w:styleId="Heading${n}"><w:name w:val="heading ${n}"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:uiPriority w:val="9"/><w:qFormat/><w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="${n <= 2 ? 360 : 240}" w:after="120"/><w:outlineLvl w:val="${n - 1}"/></w:pPr><w:rPr><w:b/>${extra}<w:color w:val="154734"/><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr></w:style>`;
+  const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Arial" w:cs="Arial"/><w:sz w:val="24"/><w:szCs w:val="24"/><w:lang w:val="en-GB" w:eastAsia="en-GB" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="160" w:line="300" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/><w:rPr><w:color w:val="1A1A1A"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="12" w:space="6" w:color="154734"/></w:pBdr><w:spacing w:after="240"/></w:pPr><w:rPr><w:b/><w:color w:val="154734"/><w:sz w:val="44"/><w:szCs w:val="44"/></w:rPr></w:style>${hStyle(1, 36)}${hStyle(2, 30)}${hStyle(3, 27)}${hStyle(4, 25)}${hStyle(5, 24)}${hStyle(6, 24, '<w:i/>')}<w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="80"/><w:ind w:left="720"/><w:contextualSpacing/></w:pPr></w:style><w:style w:type="character" w:default="1" w:styleId="DefaultParagraphFont"><w:name w:val="Default Paragraph Font"/><w:uiPriority w:val="1"/><w:semiHidden/></w:style><w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:rPr><w:color w:val="004F71"/><w:u w:val="single"/></w:rPr></w:style><w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:semiHidden/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style><w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/><w:basedOn w:val="TableNormal"/><w:pPr><w:spacing w:before="60" w:after="60" w:line="240" w:lineRule="auto"/></w:pPr><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:left w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:right w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="808080"/></w:tblBorders><w:tblCellMar><w:top w:w="60" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style></w:styles>`;
+
+  /* ---------------- Blackboard parsing ---------------- */
+  async function convert(zip, opts = {}) {
+    const progress = opts.onProgress || (() => {});
+    const includeStaff = !!opts.includeStaff;
+    const mf = zip.file('imsmanifest.xml');
+    if (!mf) throw new Error('This zip is not a Blackboard course export: there is no imsmanifest.xml inside it.');
+    progress('Reading the course structure', 0.02);
+    const xmlP = s => new DOMParser().parseFromString(s, 'application/xml');
+    const man = xmlP(await mf.async('string'));
+    const resources = {};
+    for (const r of man.getElementsByTagName('resource')) {
+      resources[r.getAttribute('identifier')] = { type: r.getAttribute('type'), file: r.getAttribute('bb:file'), title: r.getAttribute('bb:title') };
+    }
+    const datCache = {};
+    const readDat = async ref => {
+      if (ref in datCache) return datCache[ref];
+      const f = zip.file(`${ref}.dat`);
+      return (datCache[ref] = f ? await f.async('string') : '');
+    };
+
+    // course title
+    let code = 'Course', title = 'Course';
+    for (const [id, r] of Object.entries(resources)) {
+      if (r.type === 'course/x-bb-coursesetting') {
+        const d = xmlP(await readDat(id));
+        const c = d.getElementsByTagName('COURSEID')[0], t = d.getElementsByTagName('TITLE')[0];
+        if (c) code = c.getAttribute('value'); if (t) title = t.getAttribute('value');
+      }
+    }
+    const short = (code.match(/^[A-Z]{3,5}\d{5}/) || [code])[0];
+
+    // stored files: xid -> {path, name}
+    progress('Matching up files', 0.06);
+    const XID = {};
+    const fileNames = Object.keys(zip.files);
+    for (const p of fileNames) {
+      if (!p.startsWith('csfiles/') || zip.files[p].dir || p.endsWith('.xml')) continue;
+      const m = p.match(/__xid-(\d+_1)\.[^/]+$/);
+      if (!m) continue;
+      let name = p.split('/').pop();
+      const side = zip.file(p + '.xml');
+      if (side) {
+        const s = await side.async('string');
+        const nm = s.match(/<identifier>[^#<]*#([^<]*)<\/identifier>/);
+        if (nm) name = nm[1].split('/').pop();
+      }
+      XID[m[1]] = { path: p, name };
+    }
+
+    // discussions and journals
+    const FORUM = {};
+    for (const [id, r] of Object.entries(resources)) {
+      if (r.type === 'resource/x-bb-discussionboard' || r.type === 'resource/x-bb-blog') {
+        const d = xmlP(await (zip.file(r.file) || zip.file(`${id}.dat`)).async('string'));
+        const txt = [...d.getElementsByTagName('TEXT')].map(t => t.textContent).join('');
+        FORUM[r.title] = { html: txt, kind: r.type.includes('blog') ? 'journal' : 'discussion', ref: id };
+      }
+    }
+
+    const imageCache = {};
+    const warnings = { hidden: 0, years: new Set() };
+
+    function cleanHtml(h, folderFiles, ref) {
+      const doc = new DOMParser().parseFromString(`<!DOCTYPE html><html><body>${h}</body></html>`, 'text/html');
+      const body = doc.body;
+      body.querySelectorAll('script,style,iframe,noscript').forEach(e => e.remove());
+      const mk = (htmlStr) => { const d = doc.createElement('div'); d.innerHTML = htmlStr; return d.firstElementChild; };
+      const placeBlock = (anchor, node) => {
+        // never leave a block inside a heading or paragraph: put it after
+        const host = anchor.closest('h1,h2,h3,h4,h5,h6,p');
+        if (node && host && /^P$/.test(node.tagName)) { host.after(node); anchor.remove(); }
+        else if (node) anchor.replaceWith(node); else anchor.remove();
+      };
+      for (const a of [...body.querySelectorAll('a')]) {
+        const bt = a.getAttribute('data-bbtype') || '';
+        let info = {};
+        try { info = JSON.parse(a.getAttribute('data-bbfile') || '{}'); } catch (e) {}
+        const xm = (a.getAttribute('href') || '').match(/xid-(\d+_1)/);
+        const x = xm && xm[1];
+        if (bt === 'embedded-unsafe-html') { a.remove(); continue; } // decorative HTML blocks
+        if (bt === 'attachment' || (x && XID[x] && !/^UNSAFE_HTML/.test(XID[x].name) && !bt)) {
+          if (info.isDecorative || !x || !XID[x]) { a.remove(); continue; }
+          const nm = XID[x].name;
+          if (!info.displayName && info.linkName) info.displayName = info.linkName;
+          if (IMG_EXT.test(nm)) { placeBlock(a, mk(`<p><img data-zip="${escHtml(XID[x].path)}" alt="${escHtml(info.alternativeText || '')}"></p>`)); continue; }
+          const saved = folderFiles.add(x);
+          placeBlock(a, mk(`<p><strong>Attached file:</strong> ${escHtml(info.displayName || nm)}, saved in this folder as <em>${escHtml(saved)}</em></p>`));
+          continue;
+        }
+        if (bt === 'video') {
+          const src = info.src || a.getAttribute('href') || '';
+          const yt = src.match(/youtube\.com\/embed\/([\w-]+)/);
+          const url = yt ? `https://www.youtube.com/watch?v=${yt[1]}` : src;
+          placeBlock(a, mk(`<p><strong>Video:</strong> <a href="${escHtml(url)}">${escHtml(info.alt || a.textContent || 'Watch video')}</a> (${escHtml(url)})</p>`));
+          continue;
+        }
+        if (bt === 'embedded-app') {
+          const u = info.url || '';
+          const e = u.match(/entryid\/(\w+)/);
+          const url = e ? `https://media.ed.ac.uk/media/${e[1]}` : u;
+          const kind = e ? 'Media Hopper video' : 'Embedded content';
+          placeBlock(a, mk(`<p><strong>${kind}:</strong> <a href="${escHtml(url)}">${escHtml(info.title || 'Open')}</a> (${escHtml(url)})</p>`));
+          continue;
+        }
+        if (bt === 'ltiCard') { placeBlock(a, mk(`<p><strong>Link to a tool on Learn:</strong> ${escHtml(info.title || 'External tool')} (open this from the course in Learn)</p>`)); continue; }
+        const href = a.getAttribute('href') || '';
+        if (/^(https?:|mailto:)/i.test(href)) {
+          const txt = a.textContent.trim();
+          const plain = href.replace(/^mailto:/, '');
+          if (txt && txt !== href && txt !== plain && !/^mailto:/.test(href)) a.after(doc.createTextNode(` (${href})`));
+          [...a.attributes].forEach(at => { if (at.name !== 'href') a.removeAttribute(at.name); });
+        } else a.replaceWith(...a.childNodes);
+      }
+      for (const img of [...body.querySelectorAll('img')]) {
+        if (img.getAttribute('data-zip')) continue;
+        const src = img.getAttribute('src') || '';
+        const xm = src.match(/xid-(\d+_1)/);
+        let path = null;
+        if (xm && XID[xm[1]]) path = XID[xm[1]].path;
+        else if (ref) {
+          const fn = decodeURIComponent(src.split('/').pop() || '');
+          path = fileNames.find(p => p.startsWith(`${ref}/`) && p.endsWith('/' + fn)) || null;
+        }
+        if (path && IMG_EXT.test(path)) { const alt = img.getAttribute('alt') || ''; [...img.attributes].forEach(at => img.removeAttribute(at.name)); img.setAttribute('data-zip', path); img.setAttribute('alt', alt); }
+        else img.remove();
+      }
+      body.querySelectorAll('span,font').forEach(s => s.replaceWith(...s.childNodes));
+      body.querySelectorAll('[style]').forEach(e => e.removeAttribute('style'));
+      body.querySelectorAll('[data-bbid],[data-layout-row],[data-layout-column]').forEach(e => { e.removeAttribute('data-bbid'); e.removeAttribute('data-layout-row'); e.removeAttribute('data-layout-column'); e.removeAttribute('data-layout-column-width'); });
+      // remove empty paragraphs/headings
+      body.querySelectorAll('p,h1,h2,h3,h4,h5,h6').forEach(e => { if (!e.textContent.replace(/\u00a0/g, ' ').trim() && !e.querySelector('img')) e.remove(); });
+      // shift headings so the shallowest becomes h3
+      const hs = [...body.querySelectorAll('h1,h2,h3,h4,h5,h6')];
+      if (hs.length) {
+        const d = 3 - Math.min(...hs.map(e => +e.tagName[1]));
+        hs.forEach(e => {
+          const n = Math.min(6, Math.max(3, +e.tagName[1] + d));
+          if (n !== +e.tagName[1]) { const ne = doc.createElement('h' + n); while (e.firstChild) ne.appendChild(e.firstChild); e.replaceWith(ne); }
+        });
+      }
+      const txt = body.innerHTML.replace(/<[^>]+>/g, ' ').replace(/&nbsp;|\u00a0/g, ' ');
+      const MON = '(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|June?|July?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)';
+      for (const m of txt.matchAll(new RegExp(`\\b${MON}\\.?,?\\s+(20\\d\\d)\\b`, 'gi'))) warnings.years.add(+m[1]);
+      for (const m of txt.matchAll(/\b(20\d\d)\s*[\/\-]\s*(?:20)?(\d\d)\b/g)) if ((+m[2] - +m[1].slice(2) + 100) % 100 === 1) warnings.years.add(+m[1]);
+      return body.innerHTML.replace(/(<br\s*\/?>\s*){2,}/g, '<br>');
+    }
+
+    function childItems(el) { return [...el.children].filter(c => c.tagName === 'item'); }
+    const itemTitle = el => { const t = [...el.children].find(c => c.tagName === 'title'); return t ? t.textContent : ''; };
+
+    async function renderItem(it, folderFiles, depth) {
+      const title = itemTitle(it);
+      const ref = it.getAttribute('identifierref');
+      const raw = await readDat(ref);
+      const d = raw ? xmlP(raw) : null;
+      const getV = tag => { const e = d && d.getElementsByTagName(tag)[0]; return e ? e.getAttribute('value') || '' : ''; };
+      const handler = getV('CONTENTHANDLER');
+      const isBody = title === 'ultraDocumentBody';
+      if (!isBody && getV('ISAVAILABLE') === 'false') warnings.hidden++;
+      const parts = [];
+      if (!isBody) parts.push(`<h${Math.min(depth, 6)}>${escHtml(title)}</h${Math.min(depth, 6)}>`);
+      const bodyEl = d && d.querySelector('BODY > TEXT');
+      const bodyHtml = bodyEl ? bodyEl.textContent : '';
+      if (bodyHtml.trim()) parts.push(cleanHtml(bodyHtml, folderFiles, ref));
+      // files attached to the item but not referenced in the body
+      for (const m of raw.matchAll(/xid-(\d+_1)/g)) {
+        const x = m[1];
+        if (XID[x] && !folderFiles.has(x) && !/^UNSAFE_HTML/.test(XID[x].name) && !IMG_EXT.test(XID[x].name) && !bodyHtml.includes(`xid-${x}`)) {
+          const saved = folderFiles.add(x);
+          parts.push(`<p><strong>Attached file:</strong> saved in this folder as <em>${escHtml(saved)}</em></p>`);
+        }
+      }
+      const low = raw.toLowerCase();
+      if (/leganto|resourcelist/i.test(handler)) parts.push('<p><strong>Reading list:</strong> the readings for this item are held in the University Resource List (Leganto) and are not part of the course export. Open them from this item on Learn.</p>');
+      else if (low.includes('wooclap')) parts.push('<p><strong>Live activity (Wooclap):</strong> an interactive polling activity used during live sessions. It is only available on Learn.</p>');
+      else if (raw.includes('tii_lti')) parts.push('<p><strong>Submission point:</strong> assignments are submitted through Turnitin on Learn.</p>');
+      else if (raw.includes('ULTRA_ASSESSMENT_MARKER') || /asmt|assessment/i.test(handler)) parts.push(/feedback|survey/i.test(title) ? '<p><strong>Feedback survey:</strong> complete this on Learn.</p>' : '<p><strong>Test or assignment:</strong> complete and submit this on Learn.</p>');
+      else if (/blti/i.test(handler) && !bodyHtml.trim()) parts.push('<p><strong>External tool:</strong> this item opens a tool inside Learn. Use it from the course on Learn.</p>');
+      if (FORUM[title] && /courselink|journallink|forumlink|x-bb-document|^$/.test(handler)) {
+        const f = FORUM[title];
+        parts.push(`<p><strong>${f.kind === 'journal' ? 'Journal / reflection prompt' : 'Discussion prompt'}</strong> (post your response on Learn):</p>`);
+        parts.push(cleanHtml(f.html, folderFiles, f.ref));
+      }
+      for (const k of childItems(it)) parts.push(await renderItem(k, folderFiles, isBody ? depth : depth + 1));
+      return parts.join('\n');
+    }
+
+    // walk the content tree
+    const org = man.getElementsByTagName('organization')[0];
+    const root = childItems(org)[0];
+    const top = childItems(root)[0] || root;
+    let sectionEls = childItems(top).filter(s => childItems(s).length);
+    const skippedStaff = sectionEls.filter(s => /staff/i.test(itemTitle(s))).map(itemTitle);
+    if (!includeStaff) sectionEls = sectionEls.filter(s => !/staff/i.test(itemTitle(s)));
+    if (!sectionEls.length) throw new Error('No course content was found in this export. Check it is an Ultra course export rather than an Original course or a grade export.');
+
+    const ROOT = `${safe(short, 40)} Course Materials`;
+    const files = []; // {path, data}
+    const sections = [];
+    const fullHtml = [];
+
+    for (let n = 0; n < sectionEls.length; n++) {
+      const sec = sectionEls[n];
+      const t = itemTitle(sec);
+      progress(`Converting ${t}`, 0.1 + 0.75 * n / sectionEls.length);
+      const wk = t.match(/^Week\s+(\d+)/i);
+      const label = safe(wk ? `Week ${pad2(wk[1])}` + t.slice(wk[0].length) : t, 45);
+      const folder = `${ROOT}/${pad2(n + 1)} - ${label}`;
+      const used = new Map(); const names = new Set();
+      const folderFiles = {
+        has: x => used.has(x),
+        add: x => {
+          if (used.has(x)) return used.get(x);
+          let nm = safe(XID[x].name), i = 2;
+          while (names.has(nm.toLowerCase())) { const m = nm.match(/^(.*?)( \(\d+\))?(\.\w+)?$/); nm = `${m[1]} (${i++})${m[3] || ''}`; }
+          names.add(nm.toLowerCase()); used.set(x, nm); return nm;
+        }
+      };
+      let inner = '';
+      for (const k of childItems(sec)) inner += await renderItem(k, folderFiles, 2);
+      const docName = `${wk ? `Week ${pad2(wk[1])}` : safe(t, 45)} - course text.docx`;
+      files.push({ path: `${folder}/${docName}`, docx: { html: inner, title: t } });
+      for (const [x, nm] of used) files.push({ path: `${folder}/${nm}`, zipPath: XID[x].path });
+      fullHtml.push(`<h1>${escHtml(t)}</h1>\n${inner}`);
+      sections.push({ title: t, folder: folder.split('/').pop(), doc: docName, attachments: [...used.values()] });
+    }
+
+    // start-here guide
+    const rows = sections.map(s => `<h2>${escHtml(s.folder)}</h2><ul><li>${escHtml(s.doc)}: all the written content from this section of the course</li>${s.attachments.map(a => `<li>${escHtml(a)}</li>`).join('')}</ul>`).join('');
+    const start = `<p>This folder contains the content of the Learn course <em>${escHtml(title)}</em> in downloadable form. Each section of the course has its own numbered folder. Inside each folder is a Word document with all the written content for that section, plus the original slides, PDFs and other files attached to it.</p>
+<p>There is also a single Word document and a single web page containing the written content of the whole course, so you can search everything at once. The Word documents use proper headings, so you can use the Navigation Pane in Word (View, then Navigation Pane) or your screen reader's heading navigation to move between sections, and you can change the font, size, colours and spacing to suit you.</p>
+<h1>What is not included</h1><ul><li><strong>Reading lists</strong> are held in the University Resource List system (Leganto), not in the course itself. The documents show where each reading list sits; open them from Learn.</li><li><strong>Videos</strong> are listed with their web addresses so you can open them directly.</li><li><strong>Live session links, discussion boards, journals, assignment submission, tests and feedback surveys</strong> still need to be used on Learn. The prompts and instructions for each are included in the documents.</li></ul>
+<h1>What is in each folder</h1>${rows}`;
+    files.unshift({ path: `${ROOT}/00 - Start here.docx`, docx: { html: start, title: `Start here: ${short} course materials` } });
+    const all = fullHtml.join('\n');
+    files.splice(1, 0, { path: `${ROOT}/00 - Full course text (all sections).docx`, docx: { html: all, title: `${title}: full course text` } });
+    const css = 'body{font-family:Arial,Helvetica,sans-serif;font-size:1.1rem;line-height:1.6;max-width:46rem;margin:2rem auto;padding:0 1rem;color:#1a1a1a}h1{color:#154734;margin-top:3rem}h2{color:#154734;border-bottom:2px solid #154734;padding-bottom:.2rem;margin-top:2.5rem}h3,h4,h5,h6{color:#154734}a{color:#004f71}table{border-collapse:collapse}td,th{border:1px solid #888;padding:.3rem .5rem;vertical-align:top}';
+    const page = `<!DOCTYPE html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${escHtml(title)}: full course text</title><style>${css}</style></head><body><p><strong>${escHtml(title)}</strong>: full course text</p>${all.replace(/<p><img[^>]*><\/p>|<img[^>]*>/g, '')}</body></html>`;
+    files.splice(2, 0, { path: `${ROOT}/00 - Full course text (all sections).html`, text: page });
+
+    // build the bytes
+    const readImage = path => imageCache[path] || null;
+    // preload images referenced in any docx html
+    const imgPaths = new Set();
+    files.forEach(f => f.docx && (f.docx.html.match(/data-zip="([^"]+)"/g) || []).forEach(m => imgPaths.add(m.slice(10, -1).replace(/&amp;/g, '&'))));
+    for (const p of imgPaths) { const zf = zip.file(p); if (zf) imageCache[p] = await zf.async('uint8array'); }
+
+    const docxCount = files.filter(f => f.docx).length;
+    let done = 0;
+    for (const f of files) {
+      if (f.docx) {
+        progress(`Writing ${f.path.split('/').pop()}`, 0.85 + 0.13 * (done++ / docxCount));
+        f.data = await makeDocx(f.docx.html, f.docx.title, { readImage });
+        delete f.docx;
+      } else if (f.text !== undefined) { f.data = new TextEncoder().encode(f.text); delete f.text; }
+    }
+    progress('Ready', 1);
+
+    const now = new Date();
+    const acadStart = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+    const oldYears = [...warnings.years].filter(y => y < acadStart && y > 2000).sort();
+    return {
+      code, title, short, root: ROOT, sections, skippedStaff, includeStaff,
+      hiddenCount: warnings.hidden, oldYears,
+      files, // {path, data (Uint8Array)} or {path, zipPath}
+      async getBytes(f) { return f.data || zip.file(f.zipPath).async('uint8array'); }
+    };
+  }
+
+  return { convert, makeDocx, safe };
+})();
+
+
+</script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const fileInput = $('file'), drop = $('drop');
+  let currentFile = null, result = null, busy = false;
+  const canPickFolder = typeof window.showDirectoryPicker === 'function';
+  const canPickSave = typeof window.showSaveFilePicker === 'function';
+
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const fmtSize = b => b > 1e9 ? (b / 1e9).toFixed(1) + ' GB' : b > 1e6 ? Math.round(b / 1e6) + ' MB' : Math.max(1, Math.round(b / 1e3)) + ' KB';
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : (many || one + 's')}`;
+
+  function setStep(n) {
+    [1, 2, 3].forEach(i => {
+      const s = $('step' + i);
+      s.setAttribute('aria-disabled', i <= n ? 'false' : 'true');
+      s.classList.toggle('done', i < n);
+    });
+  }
+  function showError(where, title, msg) {
+    $(where).innerHTML = `<div class="error" role="alert"><strong>${esc(title)}</strong><br>${esc(msg)}</div>`;
+  }
+  function progress(prefix, text, frac) {
+    $(prefix === 1 ? 'prog' : 'prog3').hidden = false;
+    $(prefix === 1 ? 'progText' : 'progText3').textContent = text;
+    $(prefix === 1 ? 'barFill' : 'barFill3').style.width = Math.round(frac * 100) + '%';
+  }
+
+  $('chooseBtn').addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) start(fileInput.files[0]); });
+  ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) start(f); });
+  $('staff').addEventListener('change', () => { if (currentFile && !busy) start(currentFile); });
+
+  async function start(file) {
+    if (busy) return;
+    busy = true; currentFile = file; result = null;
+    $('err1').innerHTML = ''; $('err3').innerHTML = ''; $('doneMsg').innerHTML = ''; $('prog3').hidden = true;
+    setStep(1);
+    $('chosen').hidden = false;
+    $('chosen').textContent = `${file.name} (${fmtSize(file.size)})`;
+    $('chooseBtn').disabled = true;
+    try {
+      if (!/\.zip$/i.test(file.name)) throw new Error('NOTZIP');
+      progress(1, 'Opening the export', 0.01);
+      let zip;
+      try { zip = await JSZip.loadAsync(file); } catch (e) { throw new Error('NOTZIP'); }
+      result = await BBConvert.convert(zip, {
+        includeStaff: $('staff').checked,
+        onProgress: (t, f) => progress(1, t, f)
+      });
+      result.sizeEstimate = result.files.reduce((a, f) => a + (f.data ? f.data.length : ((zip.files[f.zipPath] && zip.files[f.zipPath]._data && zip.files[f.zipPath]._data.uncompressedSize) || 0)), 0);
+      $('prog').hidden = true;
+      $('chosen').textContent = `${file.name} (${fmtSize(file.size)}) converted.`;
+      renderReview();
+      setStep(3);
+      $('h2').focus();
+    } catch (e) {
+      console.error(e);
+      $('prog').hidden = true;
+      if (e.message === 'NOTZIP') showError('err1', "This file can't be opened as a zip.", 'Choose the .zip file you downloaded from Learn, without unzipping or renaming it.');
+      else showError('err1', "This export couldn't be converted.", e.message || String(e));
+      setStep(1);
+    } finally {
+      busy = false; $('chooseBtn').disabled = false; fileInput.value = '';
+    }
+  }
+
+  function kindOf(name) {
+    const ext = (name.match(/\.(\w+)$/) || ['', ''])[1].toLowerCase();
+    return ({ docx: ['Word', '📄'], pptx: ['PowerPoint', '📊'], ppt: ['PowerPoint', '📊'], pdf: ['PDF', '📕'], xlsx: ['Excel', '📗'], txt: ['Text', '📝'], html: ['Web page', '🌐'], mp4: ['Video', '🎬'], mp3: ['Audio', '🎧'], png: ['Image', '🖼️'], jpg: ['Image', '🖼️'], jpeg: ['Image', '🖼️'] })[ext] || [ext.toUpperCase() || 'File', '📎'];
+  }
+  const fileLi = name => { const [k, i] = kindOf(name); return `<li><span class="file"><span class="ico" aria-hidden="true">${i}</span><span>${esc(name)}</span><span class="kind">${esc(k)}</span></span></li>`; };
+
+  function renderReview() {
+    const r = result;
+    $('courseTitle').textContent = r.title;
+    const attachCount = r.sections.reduce((a, s) => a + s.attachments.length, 0);
+    $('counts').textContent = `${plural(r.sections.length, 'section')}, ${plural(r.files.length, 'file')} in total (${plural(attachCount, 'original file')} from the course), about ${fmtSize(r.sizeEstimate)}.`;
+
+    const n = [];
+    if (r.oldYears.length) n.push(`<li><strong>Check the dates.</strong>The course text mentions dates in ${esc(r.oldYears.join(', '))}. If this is a rolled-over course, deadlines and session times may be out of date.</li>`);
+    if (r.hiddenCount) n.push(`<li><strong>${plural(r.hiddenCount, 'item is', 'items are')} hidden from students on Learn.</strong>They are included here. Check they are ready to share before sending the files.</li>`);
+    if (r.skippedStaff.length && !r.includeStaff) n.push(`<li><strong>Left out as staff-only: ${esc(r.skippedStaff.join(', '))}.</strong>Tick "Include staff-only folders" in step 1 if you need it.</li>`);
+    if (r.skippedStaff.length && r.includeStaff) n.push(`<li><strong>Staff-only folders are included: ${esc(r.skippedStaff.join(', '))}.</strong>Untick the option in step 1 before sharing these files with a student.</li>`);
+    $('notices').innerHTML = n.join('');
+
+    const top = r.files.filter(f => f.path.split('/').length === 2).map(f => f.path.split('/')[1]);
+    let html = `<p class="tree-root"><span class="ico" aria-hidden="true">📁</span>${esc(r.root)}</p><ul>`;
+    html += top.map(fileLi).join('');
+    for (const s of r.sections) {
+      const items = [s.doc, ...s.attachments];
+      html += `<li><details><summary><span class="ico" aria-hidden="true">📁</span><span>${esc(s.folder)}</span><span class="n">${plural(items.length, 'file')}</span></summary><ul>${items.map(fileLi).join('')}</ul></details></li>`;
+    }
+    $('tree').innerHTML = html + '</ul>';
+    const first = $('tree').querySelector('details');
+    if (first) first.open = true;
+
+    $('saveIntro').textContent = canPickFolder
+      ? `Choose where to save. A folder called "${r.root}" is created there, with everything shown above inside it.`
+      : `Your browser will save a zip file called "${r.root}.zip". Unzip it wherever you want the files.`;
+    $('saveFolder').hidden = !canPickFolder;
+    $('saveZip').classList.toggle('secondary', canPickFolder);
+    $('saveHint').textContent = canPickFolder
+      ? 'A zip is handy for emailing the files or putting them on a shared drive.'
+      : 'Saving straight into a folder works in Chrome and Edge.';
+  }
+
+  async function guard(fn) {
+    if (busy || !result) return;
+    busy = true; $('err3').innerHTML = ''; $('doneMsg').innerHTML = '';
+    $('saveFolder').disabled = $('saveZip').disabled = true;
+    try { await fn(); }
+    catch (e) {
+      if (e && e.name === 'AbortError') { $('prog3').hidden = true; return; }
+      console.error(e);
+      $('prog3').hidden = true;
+      if (e && (e.name === 'SecurityError' || e.name === 'NotAllowedError'))
+        showError('err3', "This page isn't allowed to save into a folder here.", 'This can happen when the tool is opened inside another page, such as Learn. Use "Save as a zip" instead, or open the tool in its own tab.');
+      else showError('err3', 'The files could not be saved.', (e && e.message) || String(e));
+    } finally {
+      busy = false; $('saveFolder').disabled = $('saveZip').disabled = false;
+    }
+  }
+
+  $('saveFolder').addEventListener('click', () => guard(async () => {
+    const parent = await window.showDirectoryPicker({ id: 'bb-export-converter', mode: 'readwrite' });
+    // don't overwrite an earlier conversion: add (2), (3)...
+    let rootName = result.root, i = 2;
+    while (true) {
+      try { await parent.getDirectoryHandle(rootName); rootName = `${result.root} (${i++})`; }
+      catch (e) { if (e.name === 'NotFoundError') break; throw e; }
+    }
+    const dirCache = {};
+    const getDir = async parts => {
+      let d = parent, key = '';
+      for (const p of parts) { key += '/' + p; d = dirCache[key] || (dirCache[key] = await d.getDirectoryHandle(p, { create: true })); }
+      return d;
+    };
+    const files = result.files;
+    for (let n = 0; n < files.length; n++) {
+      const f = files[n];
+      const parts = f.path.split('/'); parts[0] = rootName;
+      const name = parts.pop();
+      progress(3, `Saving ${name}`, n / files.length);
+      const dir = await getDir(parts);
+      const fh = await dir.getFileHandle(name, { create: true });
+      const w = await fh.createWritable();
+      await w.write(await result.getBytes(f));
+      await w.close();
+    }
+    progress(3, 'Saved', 1);
+    finished(`Saved ${plural(files.length, "file")} into a new folder called "${rootName}"${parent.name ? ` in ${parent.name}` : ""}.`);
+  }));
+
+  $('saveZip').addEventListener('click', () => guard(async () => {
+    let handle = null;
+    if (canPickSave) {
+      handle = await window.showSaveFilePicker({ id: 'bb-export-converter-zip', suggestedName: `${result.root}.zip`, types: [{ description: 'Zip file', accept: { 'application/zip': ['.zip'] } }] });
+    }
+    const out = new JSZip();
+    const files = result.files;
+    for (let n = 0; n < files.length; n++) {
+      progress(3, 'Gathering files', 0.2 * n / files.length);
+      out.file(files[n].path, await result.getBytes(files[n]));
+    }
+    const blob = await out.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } },
+      m => progress(3, 'Building the zip', 0.2 + 0.75 * m.percent / 100));
+    if (handle) {
+      progress(3, 'Writing the zip', 0.97);
+      const w = await handle.createWritable(); await w.write(blob); await w.close();
+      progress(3, 'Saved', 1);
+      finished(`Saved "${handle.name}" (${fmtSize(blob.size)}).`);
+    } else {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob); a.download = `${result.root}.zip`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+      progress(3, 'Saved', 1);
+      finished(`Your browser is saving "${result.root}.zip" (${fmtSize(blob.size)}). Check your downloads if you weren't asked where to put it.`);
+    }
+  }));
+
+  function finished(msg) {
+    $('step3').classList.add('done');
+    $('doneMsg').innerHTML = `<div class="done-msg" role="status"><p>${esc(msg)}</p><p>Open "00 - Start here" first: it explains what is in each folder.</p></div><div class="btns"><button type="button" class="secondary" id="again">Convert another export</button></div>`;
+    $('again').addEventListener('click', () => {
+      result = null; currentFile = null;
+      $('chosen').hidden = true; $('prog').hidden = true; $('prog3').hidden = true; $('doneMsg').innerHTML = '';
+      setStep(1); $('h1').focus(); window.scrollTo({ top: 0 });
+    });
+  }
+})();
+</script>
+</body>
+</html>
