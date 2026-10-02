@@ -520,9 +520,47 @@ const BBConvert = (() => {
     }
 
     const imageCache = {};
-    const warnings = { hidden: 0, years: new Set() };
+    const warnings = { hidden: 0, years: new Set(), missingImages: 0, interactive: [] };
+    const BLOCKS = {};
+    for (const [x, v] of Object.entries(XID)) {
+      if (/^UNSAFE_HTML/.test(v.name) || /\.html?$/i.test(v.name)) BLOCKS[x] = await zip.file(v.path).async('string');
+    }
 
-    function cleanHtml(h, folderFiles, ref) {
+    // Turn an embedded HTML block into plain content, a note, or nothing.
+    function embedBlock(doc, x, pageTitle) {
+      const src = BLOCKS[x];
+      if (src === undefined) return null;
+      const box = doc.createElement('div');
+      box.innerHTML = src;
+      const scripts = [...box.querySelectorAll('script')];
+      const realScript = scripts.some(sc => !/bb-auto-resize|bb-embedded-html/.test(sc.className) && sc.textContent.trim());
+      const controls = box.querySelectorAll('input,select,textarea,button,canvas,[onclick],[oninput],[onchange]').length;
+      box.querySelectorAll('script,style,link,meta,noscript,title,template').forEach(e => e.remove());
+      const walker = doc.createTreeWalker(box, 128); const comments = [];
+      while (walker.nextNode()) comments.push(walker.currentNode);
+      comments.forEach(c => c.remove());
+      const words = (box.textContent.match(/[\p{L}\p{N}]+/gu) || []).length;
+      const hasMedia = box.querySelector('img,iframe,video,audio,a[href],table');
+      if (realScript && controls) {
+        const h = box.querySelector('h1,h2,h3,h4,h5,h6');
+        const name = h ? h.textContent.trim() : '';
+        warnings.interactive.push(pageTitle + (name ? ` (${name})` : ''));
+        const d = doc.createElement('div');
+        d.innerHTML = `<p><strong>Interactive content${name ? `: ${escHtml(name)}` : ''}.</strong> This part of the page is an interactive tool that only works on Learn.</p>`;
+        return d;
+      }
+      if (!hasMedia && words <= 3) return null; // decorative banners and empty blocks
+      // embedded iframes become links
+      box.querySelectorAll('iframe').forEach(f => {
+        const u = f.getAttribute('src') || '';
+        const p = doc.createElement('p');
+        p.innerHTML = /^https?:/.test(u) ? `<strong>Embedded content:</strong> <a href="${escHtml(u)}">${escHtml(f.getAttribute('title') || u)}</a> (${escHtml(u)})` : '';
+        f.replaceWith(p);
+      });
+      return box;
+    }
+
+    function cleanHtml(h, folderFiles, ref, pageTitle = '') {
       const doc = new DOMParser().parseFromString(`<!DOCTYPE html><html><body>${h}</body></html>`, 'text/html');
       const body = doc.body;
       body.querySelectorAll('script,style,iframe,noscript').forEach(e => e.remove());
@@ -539,8 +577,16 @@ const BBConvert = (() => {
         try { info = JSON.parse(a.getAttribute('data-bbfile') || '{}'); } catch (e) {}
         const xm = (a.getAttribute('href') || '').match(/xid-(\d+_1)/);
         const x = xm && xm[1];
-        if (bt === 'embedded-unsafe-html') { a.remove(); continue; } // decorative HTML blocks
-        if (bt === 'attachment' || (x && XID[x] && !/^UNSAFE_HTML/.test(XID[x].name) && !bt)) {
+        if (bt === 'embedded-unsafe-html' || (x && BLOCKS[x] !== undefined)) {
+          const box = x ? embedBlock(doc, x, pageTitle) : null;
+          if (!box) { a.remove(); continue; }
+          const host = a.closest('h1,h2,h3,h4,h5,h6,p');
+          const frag = doc.createDocumentFragment();
+          while (box.firstChild) frag.appendChild(box.firstChild);
+          if (host) { host.after(frag); a.remove(); } else a.replaceWith(frag);
+          continue;
+        }
+        if (bt === 'attachment' || (x && XID[x] && !bt)) {
           if (info.isDecorative || !x || !XID[x]) { a.remove(); continue; }
           const nm = XID[x].name;
           if (!info.displayName && info.linkName) info.displayName = info.linkName;
@@ -583,6 +629,7 @@ const BBConvert = (() => {
           const fn = decodeURIComponent(src.split('/').pop() || '');
           path = fileNames.find(p => p.startsWith(`${ref}/`) && p.endsWith('/' + fn)) || null;
         }
+        if (!path && (xm || /^https?:/i.test(src))) warnings.missingImages++;
         if (path && IMG_EXT.test(path)) { const alt = img.getAttribute('alt') || ''; [...img.attributes].forEach(at => img.removeAttribute(at.name)); img.setAttribute('data-zip', path); img.setAttribute('alt', alt); }
         else img.remove();
       }
@@ -610,7 +657,7 @@ const BBConvert = (() => {
     function childItems(el) { return [...el.children].filter(c => c.tagName === 'item'); }
     const itemTitle = el => { const t = [...el.children].find(c => c.tagName === 'title'); return t ? t.textContent : ''; };
 
-    async function renderItem(it, folderFiles, depth) {
+    async function renderItem(it, folderFiles, depth, parentTitle = '') {
       const title = itemTitle(it);
       const ref = it.getAttribute('identifierref');
       const raw = await readDat(ref);
@@ -618,12 +665,13 @@ const BBConvert = (() => {
       const getV = tag => { const e = d && d.getElementsByTagName(tag)[0]; return e ? e.getAttribute('value') || '' : ''; };
       const handler = getV('CONTENTHANDLER');
       const isBody = title === 'ultraDocumentBody';
+      const pageName = isBody ? parentTitle : title;
       if (!isBody && getV('ISAVAILABLE') === 'false') warnings.hidden++;
       const parts = [];
       if (!isBody) parts.push(`<h${Math.min(depth, 6)}>${escHtml(title)}</h${Math.min(depth, 6)}>`);
       const bodyEl = d && d.querySelector('BODY > TEXT');
       const bodyHtml = bodyEl ? bodyEl.textContent : '';
-      if (bodyHtml.trim()) parts.push(cleanHtml(bodyHtml, folderFiles, ref));
+      if (bodyHtml.trim()) parts.push(cleanHtml(bodyHtml, folderFiles, ref, pageName));
       // files attached to the item but not referenced in the body
       for (const m of raw.matchAll(/xid-(\d+_1)/g)) {
         const x = m[1];
@@ -641,9 +689,9 @@ const BBConvert = (() => {
       if (FORUM[title] && /courselink|journallink|forumlink|x-bb-document|^$/.test(handler)) {
         const f = FORUM[title];
         parts.push(`<p><strong>${f.kind === 'journal' ? 'Journal / reflection prompt' : 'Discussion prompt'}</strong> (post your response on Learn):</p>`);
-        parts.push(cleanHtml(f.html, folderFiles, f.ref));
+        parts.push(cleanHtml(f.html, folderFiles, f.ref, title));
       }
-      for (const k of childItems(it)) parts.push(await renderItem(k, folderFiles, isBody ? depth : depth + 1));
+      for (const k of childItems(it)) parts.push(await renderItem(k, folderFiles, isBody ? depth : depth + 1, pageName));
       return parts.join('\n');
     }
 
@@ -723,7 +771,7 @@ const BBConvert = (() => {
     const oldYears = [...warnings.years].filter(y => y < acadStart && y > 2000).sort();
     return {
       code, title, short, root: ROOT, sections, skippedStaff, includeStaff,
-      hiddenCount: warnings.hidden, oldYears,
+      hiddenCount: warnings.hidden, oldYears, missingImages: warnings.missingImages, interactive: warnings.interactive,
       files, // {path, data (Uint8Array)} or {path, zipPath}
       async getBytes(f) { return f.data || zip.file(f.zipPath).async('uint8array'); }
     };
@@ -818,6 +866,8 @@ const BBConvert = (() => {
     const n = [];
     if (r.oldYears.length) n.push(`<li><strong>Check the dates.</strong>The course text mentions dates in ${esc(r.oldYears.join(', '))}. If this is a rolled-over course, deadlines and session times may be out of date.</li>`);
     if (r.hiddenCount) n.push(`<li><strong>${plural(r.hiddenCount, 'item is', 'items are')} hidden from students on Learn.</strong>They are included here. Check they are ready to share before sending the files.</li>`);
+    if (r.missingImages) n.push(`<li><strong>${plural(r.missingImages, 'image is', 'images are')} stored outside this course and can't be included.</strong>They are linked from elsewhere on Learn (for example, staff photos kept in a shared folder), so Blackboard leaves them out of the export. The text around them is still included.</li>`);
+    if (r.interactive.length) n.push(`<li><strong>Interactive content can't be converted: ${esc(r.interactive.join('; '))}.</strong>The documents note where it sits, so the student knows to use it on Learn.</li>`);
     if (r.skippedStaff.length && !r.includeStaff) n.push(`<li><strong>Left out as staff-only: ${esc(r.skippedStaff.join(', '))}.</strong>Tick "Include staff-only folders" in step 1 if you need it.</li>`);
     if (r.skippedStaff.length && r.includeStaff) n.push(`<li><strong>Staff-only folders are included: ${esc(r.skippedStaff.join(', '))}.</strong>Untick the option in step 1 before sharing these files with a student.</li>`);
     $('notices').innerHTML = n.join('');
