@@ -151,6 +151,10 @@
     @media (max-width: 480px) {
       .tools-grid { grid-template-columns: 1fr; }
     }
+    .tools-grid.two-up { grid-template-columns: 1fr 1fr; }
+    @media (max-width: 480px) {
+      .tools-grid.two-up { grid-template-columns: 1fr; }
+    }
 
     /* ── Tool card ── */
     .tool-card {
@@ -374,7 +378,7 @@
     <div class="hero-inner">
       <div class="hero-eyebrow">Matt's LEARN Tools</div>
       <h1>LEARN <span>Tools</span></h1>
-      <p class="hero-sub">A personal collection of browser-based tools for creating visual assets and interactive content for use in LEARN. No installation required — open any tool and get started.</p>
+      <p class="hero-sub">A personal collection of browser-based tools for creating visual assets and interactive content for LEARN, and for working with course exports. No installation required — open any tool and get started.</p>
     </div>
     <div class="hero-bar"></div>
   </header>
@@ -499,6 +503,39 @@
           <span class="tool-card-label" style="color:#830065;">Interactive</span>
           <h2>Categorisation Builder</h2>
           <p>Create drag-and-tap sorting activities for LEARN pages. Set up categories and items for students to sort, with instant feedback when they check their answers. Copy the generated HTML into your course.</p>
+          <span class="tool-card-link" style="background:#830065;">Open tool</span>
+        </div>
+      </a>
+
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- ── Course export tools ── -->
+    <div class="section-header">
+      <span class="section-heading">Course export tools</span>
+      <span class="section-tag">2 tools</span>
+    </div>
+    <p class="section-intro">Work with a Learn Ultra course export: turn it into files a student can download, or find what needs updating before the course runs again. Export the course from Learn, then open the zip in the tool — nothing is uploaded to any server.</p>
+
+    <div class="tools-grid two-up">
+
+      <a class="tool-card" href="https://mattoteacher.github.io/learn-tools/course-export-converter/index.html">
+        <div class="tool-card-top" style="background:#154734;"></div>
+        <div class="tool-card-body">
+          <span class="tool-card-label" style="color:#154734;">Accessibility</span>
+          <h2>Course Export Converter</h2>
+          <p>Turn a course export into a folder of Word documents and the original files, organised by section. Useful when a student needs downloadable copies of course materials, for example as a reasonable adjustment.</p>
+          <span class="tool-card-link" style="background:#154734;">Open tool</span>
+        </div>
+      </a>
+
+      <a class="tool-card" href="https://mattoteacher.github.io/learn-tools/course-rollover-audit/index.html">
+        <div class="tool-card-top" style="background:#830065;"></div>
+        <div class="tool-card-body">
+          <span class="tool-card-label" style="color:#830065;">Rollover</span>
+          <h2>Course Rollover Checker</h2>
+          <p>Check a course before it runs again. Finds dates and times, Learn links that break when the course is copied, live session links, readings outside the Resource List, external links and unclear file names, then gives you a Word checklist to work through.</p>
           <span class="tool-card-link" style="background:#830065;">Open tool</span>
         </div>
       </a>
