@@ -288,6 +288,7 @@ const BBConvert = (() => {
       if (f.link) rpr += '<w:rStyle w:val="Hyperlink"/>';
       if (f.b) rpr += '<w:b/>';
       if (f.i) rpr += '<w:i/>';
+      if (f.mark) rpr += '<w:highlight w:val="yellow"/>';
       if (f.u && !f.link) rpr += '<w:u w:val="single"/>';
       if (f.sup) rpr += '<w:vertAlign w:val="superscript"/>';
       if (f.sub) rpr += '<w:vertAlign w:val="subscript"/>';
@@ -325,6 +326,7 @@ const BBConvert = (() => {
         if (tag === 'STRONG' || tag === 'B' || tag === 'TH') nf.b = true;
         if (tag === 'EM' || tag === 'I') nf.i = true;
         if (tag === 'U') nf.u = true;
+        if (tag === 'MARK') nf.mark = true;
         if (tag === 'SUP') nf.sup = true;
         if (tag === 'SUB') nf.sub = true;
         if (tag === 'A') {
@@ -373,7 +375,7 @@ const BBConvert = (() => {
         if (c.nodeType === 1 && BLOCK.has(c.tagName)) {
           flush();
           res.push(block(c, list));
-        } else if (c.nodeType === 1 || (c.nodeType === 3 && c.nodeValue.trim())) {
+        } else if (c.nodeType === 1 || (c.nodeType === 3 && (c.nodeValue.trim() || buf.length))) {
           if (!(c.nodeType === 1 && c.tagName === 'BR' && !buf.length)) buf.push(c);
         }
       }
@@ -410,19 +412,23 @@ const BBConvert = (() => {
       if (!rows.length) return '';
       const ncol = Math.max(...rows.map(r => [...r.children].filter(c => /^T[DH]$/.test(c.tagName)).reduce((a, c) => a + (parseInt(c.getAttribute('colspan')) || 1), 0)), 1);
       const cw = Math.floor(PAGE_W / ncol);
-      let x = `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="${cw * ncol}" w:type="dxa"/><w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr><w:tblGrid>${('<w:gridCol w:w="' + cw + '"/>').repeat(ncol)}</w:tblGrid>`;
+      const wAttr = (el.getAttribute('data-widths') || '').split(',').map(Number).filter(n => n > 0);
+      const colW = i => wAttr.length === ncol ? Math.floor(PAGE_W * wAttr[i] / wAttr.reduce((a, b) => a + b, 0)) : cw;
+      let x = `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="${cw * ncol}" w:type="dxa"/><w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr><w:tblGrid>${Array.from({ length: ncol }, (_, i) => `<w:gridCol w:w="${colW(i)}"/>`).join('')}</w:tblGrid>`;
       rows.forEach((r, ri) => {
         const cells = [...r.children].filter(c => /^T[DH]$/.test(c.tagName));
         const isHead = ri === 0 && (cells.every(c => c.tagName === 'TH') || r.closest('thead'));
         x += `<w:tr>${isHead ? '<w:trPr><w:tblHeader/></w:trPr>' : ''}`;
         let used = 0;
         cells.forEach(c => {
-          const span = parseInt(c.getAttribute('colspan')) || 1; used += span;
+          const span = parseInt(c.getAttribute('colspan')) || 1;
+          let cwSpan = 0; for (let k = used; k < used + span; k++) cwSpan += colW(k);
+          used += span;
           let inner = blocks(c, null);
           if (c.tagName === 'TH' && !inner.includes('<w:b/>')) inner = inner.replace(/<w:r>(<w:rPr>)?/g, (m, rp) => rp ? '<w:r><w:rPr><w:b/>' : '<w:r><w:rPr><w:b/></w:rPr>');
-          x += `<w:tc><w:tcPr><w:tcW w:w="${cw * span}" w:type="dxa"/>${span > 1 ? `<w:gridSpan w:val="${span}"/>` : ''}</w:tcPr>${inner || '<w:p/>'}</w:tc>`;
+          x += `<w:tc><w:tcPr><w:tcW w:w="${cwSpan}" w:type="dxa"/>${span > 1 ? `<w:gridSpan w:val="${span}"/>` : ''}</w:tcPr>${inner || '<w:p/>'}</w:tc>`;
         });
-        for (; used < ncol; used++) x += `<w:tc><w:tcPr><w:tcW w:w="${cw}" w:type="dxa"/></w:tcPr><w:p/></w:tc>`;
+        for (; used < ncol; used++) x += `<w:tc><w:tcPr><w:tcW w:w="${colW(used)}" w:type="dxa"/></w:tcPr><w:p/></w:tc>`;
         x += '</w:tr>';
       });
       return x + '</w:tbl><w:p/>';
@@ -464,6 +470,8 @@ const BBConvert = (() => {
   async function convert(zip, opts = {}) {
     const progress = opts.onProgress || (() => {});
     const includeStaff = !!opts.includeStaff;
+    const analyse = !!opts.analyse;
+    const pages = [];
     const mf = zip.file('imsmanifest.xml');
     if (!mf) throw new Error('This zip is not a Blackboard course export: there is no imsmanifest.xml inside it.');
     progress('Reading the course structure', 0.02);
@@ -481,12 +489,13 @@ const BBConvert = (() => {
     };
 
     // course title
-    let code = 'Course', title = 'Course';
+    let code = 'Course', title = 'Course', courseId = '';
     for (const [id, r] of Object.entries(resources)) {
       if (r.type === 'course/x-bb-coursesetting') {
         const d = xmlP(await readDat(id));
         const c = d.getElementsByTagName('COURSEID')[0], t = d.getElementsByTagName('TITLE')[0];
         if (c) code = c.getAttribute('value'); if (t) title = t.getAttribute('value');
+        courseId = (d.documentElement && d.documentElement.getAttribute('id')) || '';
       }
     }
     const short = (code.match(/^[A-Z]{3,5}\d{5}/) || [code])[0];
@@ -599,7 +608,7 @@ const BBConvert = (() => {
           const src = info.src || a.getAttribute('href') || '';
           const yt = src.match(/youtube\.com\/embed\/([\w-]+)/);
           const url = yt ? `https://www.youtube.com/watch?v=${yt[1]}` : src;
-          placeBlock(a, mk(`<p><strong>Video:</strong> <a href="${escHtml(url)}">${escHtml(info.alt || a.textContent || 'Watch video')}</a> (${escHtml(url)})</p>`));
+          placeBlock(a, mk(`<p><strong>Video:</strong> <a data-kind="video" href="${escHtml(url)}">${escHtml(info.alt || a.textContent || 'Watch video')}</a> (${escHtml(url)})</p>`));
           continue;
         }
         if (bt === 'embedded-app') {
@@ -607,7 +616,7 @@ const BBConvert = (() => {
           const e = u.match(/entryid\/(\w+)/);
           const url = e ? `https://media.ed.ac.uk/media/${e[1]}` : u;
           const kind = e ? 'Media Hopper video' : 'Embedded content';
-          placeBlock(a, mk(`<p><strong>${kind}:</strong> <a href="${escHtml(url)}">${escHtml(info.title || 'Open')}</a> (${escHtml(url)})</p>`));
+          placeBlock(a, mk(`<p><strong>${kind}:</strong> <a data-kind="${e ? 'video' : 'embed'}" href="${escHtml(url)}">${escHtml(info.title || 'Open')}</a> (${escHtml(url)})</p>`));
           continue;
         }
         if (bt === 'ltiCard') { placeBlock(a, mk(`<p><strong>Link to a tool on Learn:</strong> ${escHtml(info.title || 'External tool')} (open this from the course in Learn)</p>`)); continue; }
@@ -615,7 +624,7 @@ const BBConvert = (() => {
         if (/^(https?:|mailto:)/i.test(href)) {
           const txt = a.textContent.trim();
           const plain = href.replace(/^mailto:/, '');
-          if (txt && txt !== href && txt !== plain && !/^mailto:/.test(href)) a.after(doc.createTextNode(` (${href})`));
+          if (!analyse && txt && txt !== href && txt !== plain && !/^mailto:/.test(href)) a.after(doc.createTextNode(` (${href})`));
           [...a.attributes].forEach(at => { if (at.name !== 'href') a.removeAttribute(at.name); });
         } else a.replaceWith(...a.childNodes);
       }
@@ -657,7 +666,7 @@ const BBConvert = (() => {
     function childItems(el) { return [...el.children].filter(c => c.tagName === 'item'); }
     const itemTitle = el => { const t = [...el.children].find(c => c.tagName === 'title'); return t ? t.textContent : ''; };
 
-    async function renderItem(it, folderFiles, depth, parentTitle = '') {
+    async function renderItem(it, folderFiles, depth, parentTitle = '', trail = []) {
       const title = itemTitle(it);
       const ref = it.getAttribute('identifierref');
       const raw = await readDat(ref);
@@ -666,12 +675,15 @@ const BBConvert = (() => {
       const handler = getV('CONTENTHANDLER');
       const isBody = title === 'ultraDocumentBody';
       const pageName = isBody ? parentTitle : title;
+      const myTrail = isBody ? trail : [...trail, title];
       if (!isBody && getV('ISAVAILABLE') === 'false') warnings.hidden++;
       const parts = [];
       if (!isBody) parts.push(`<h${Math.min(depth, 6)}>${escHtml(title)}</h${Math.min(depth, 6)}>`);
       const bodyEl = d && d.querySelector('BODY > TEXT');
       const bodyHtml = bodyEl ? bodyEl.textContent : '';
-      if (bodyHtml.trim()) parts.push(cleanHtml(bodyHtml, folderFiles, ref, pageName));
+      const bodyClean = bodyHtml.trim() ? cleanHtml(bodyHtml, folderFiles, ref, pageName) : '';
+      if (bodyClean) parts.push(bodyClean);
+      let promptClean = '';
       // files attached to the item but not referenced in the body
       for (const m of raw.matchAll(/xid-(\d+_1)/g)) {
         const x = m[1];
@@ -689,9 +701,22 @@ const BBConvert = (() => {
       if (FORUM[title] && /courselink|journallink|forumlink|x-bb-document|^$/.test(handler)) {
         const f = FORUM[title];
         parts.push(`<p><strong>${f.kind === 'journal' ? 'Journal / reflection prompt' : 'Discussion prompt'}</strong> (post your response on Learn):</p>`);
-        parts.push(cleanHtml(f.html, folderFiles, f.ref, title));
+        promptClean = cleanHtml(f.html, folderFiles, f.ref, title);
+        parts.push(promptClean);
       }
-      for (const k of childItems(it)) parts.push(await renderItem(k, folderFiles, isBody ? depth : depth + 1, pageName));
+      if (analyse) {
+        const files = [];
+        for (const m of raw.matchAll(/xid-(\d+_1)/g)) {
+          const v = XID[m[1]];
+          if (v && BLOCKS[m[1]] === undefined && !/^UNSAFE_HTML/.test(v.name) && !files.some(f => f.path === v.path)) files.push({ name: v.name, path: v.path, image: IMG_EXT.test(v.name) });
+        }
+        const url = getV('URL');
+        const html = bodyClean + (promptClean ? `<h3 data-prompt="1">${FORUM[title].kind === 'journal' ? 'Journal prompt' : 'Discussion prompt'}</h3>${promptClean}` : '');
+        if (html.trim() || files.length || /^https?:/i.test(url))
+          pages.push({ loc: myTrail, title: pageName, html, files, url: /^https?:/i.test(url) ? url : '', handler,
+            hidden: getV('ISAVAILABLE') === 'false', resourceList: /leganto|resourcelist/i.test(handler) });
+      }
+      for (const k of childItems(it)) parts.push(await renderItem(k, folderFiles, isBody ? depth : depth + 1, pageName, myTrail));
       return parts.join('\n');
     }
 
@@ -727,12 +752,18 @@ const BBConvert = (() => {
         }
       };
       let inner = '';
-      for (const k of childItems(sec)) inner += await renderItem(k, folderFiles, 2);
+      for (const k of childItems(sec)) inner += await renderItem(k, folderFiles, 2, t, [t]);
       const docName = `${wk ? `Week ${pad2(wk[1])}` : safe(t, 45)} - course text.docx`;
       files.push({ path: `${folder}/${docName}`, docx: { html: inner, title: t } });
       for (const [x, nm] of used) files.push({ path: `${folder}/${nm}`, zipPath: XID[x].path });
       fullHtml.push(`<h1>${escHtml(t)}</h1>\n${inner}`);
       sections.push({ title: t, folder: folder.split('/').pop(), doc: docName, attachments: [...used.values()] });
+    }
+
+    if (analyse) {
+      return { code, title, short, courseId, pages, skippedStaff, includeStaff, hiddenCount: warnings.hidden,
+        missingImages: warnings.missingImages, interactive: warnings.interactive, sectionTitles: sections.map(x => x.title),
+        readBytes: async (path, max) => { const f = zip.file(path); if (!f) return null; const b = await f.async('uint8array'); return max ? b.subarray(0, max) : b; } };
     }
 
     // start-here guide
