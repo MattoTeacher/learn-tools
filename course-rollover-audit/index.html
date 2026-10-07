@@ -3,22 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Course rollover checker</title>
+<title>Course rollover audit</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@500;600&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <style>
 :root {
-  --green: #154734;      /* University dark green: primary */
-  --green-hover: #092017;
+  --green: #830065;      /* University purple: primary */
+  --green-hover: #5c0047;
   --green-link: #f2ca27;
   --jade: #487A7B;       /* secondary, tree guides */
   --burgundy: #a50034;   /* errors */
   --ink: #1f262b;
   --muted: #4f5b63;
   --paper: #ffffff;
-  --wash: #f2f5f3;       /* panels */
+  --wash: #f7f2f5;       /* panels */
   --rule: #c9d3ce;
   --notice: #fbf6e3;
   --notice-rule: #c9a227;
@@ -28,7 +28,7 @@
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --green: #5fa98a; --green-hover: #7fc4a6; --jade: #7fb3b4; --burgundy: #ff7a9a;
+    --green: #e38ccb; --green-hover: #f0b4df; --jade: #7fb3b4; --burgundy: #ff7a9a;
     --ink: #e8ecea; --muted: #b3bdb8; --paper: #121816; --wash: #1b2421; --rule: #33413b;
     --notice: #2a2617; --notice-rule: #b8952a;
   }
@@ -192,14 +192,19 @@ mark { background: var(--mark); color: var(--mark-ink); padding: 0 .12em; border
 .url { font-size: .88rem; overflow-wrap: anywhere; }
 .note { font-size: .93rem; color: var(--muted); }
 .none { color: var(--muted); font-style: italic; margin: .3rem 0 0; }
-.course-meta { color: var(--muted); margin: 0 0 1rem; }
+.course-meta { color: var(--muted); margin: 0 0 .6rem; }
+#templateList { margin: 0 0 1.2rem; }
+#templateList details { margin: 0; }
+.rules { margin: -.4rem 0 1rem; font-size: .95rem; }
+.rules ul { margin: 0; padding-left: 1.1rem; }
+.rules li { margin: 0 0 .3rem; }
 </style>
 </head>
 <body>
 <div class="wrap">
 <header>
-  <h1>Course rollover checker</h1>
-  <p>Find what needs updating before a course runs again: dates and times, links that break when the course is copied, live session links, readings outside the Resource List, external links and file names. Everything happens in your browser, so the course files are never uploaded anywhere.</p>
+  <h1>Course rollover audit</h1>
+  <p>Find what needs updating before a course runs again: dates and times, unfilled template text, links that break when the course is copied, live session links, readings outside the Resource List, videos, external links and file names. Everything happens in your browser, so the course files are never uploaded anywhere.</p>
 </header>
 
 <main>
@@ -218,7 +223,7 @@ mark { background: var(--mark); color: var(--mark-ink); padding: 0 .12em; border
       <p id="progText" role="status" aria-live="polite"></p>
     </div>
     <div id="err1"></div>
-    <label class="check"><input type="checkbox" id="staff"> <span>Include staff-only folders (any top-level folder with "staff" in its name)</span></label>
+    <label class="check"><input type="checkbox" id="template"> <span>Include University template pages, such as Help and Support and the Read Me First pages. These are the same in every course, so they are left out by default.</span></label>
     <details>
       <summary>How do I export a course from Learn?</summary>
       <div>
@@ -232,14 +237,15 @@ mark { background: var(--mark); color: var(--mark-ink); padding: 0 .12em; border
     <h2 id="h2" tabindex="-1">Review what was found</h2>
     <p class="course-title" id="courseTitle"></p>
     <p class="course-meta" id="courseMeta"></p>
+    <div id="templateList"></div>
     <ul class="summary" id="summary"></ul>
     <div id="report"></div>
   </li>
 
   <li class="step" id="step3" aria-disabled="true">
-    <h2 id="h3" tabindex="-1">Download the checklist</h2>
+    <h2 id="h3" tabindex="-1">Download the audit</h2>
     <p>A Word document with everything above as tables, plus a Done column to tick off as you update the new course.</p>
-    <div class="btns"><button type="button" id="saveDoc">Download checklist</button></div>
+    <div class="btns"><button type="button" id="saveDoc">Download audit</button></div>
     <div id="err3"></div>
     <div id="doneMsg"></div>
   </li>
@@ -247,7 +253,7 @@ mark { background: var(--mark); color: var(--mark-ink); padding: 0 .12em; border
 </main>
 
 <footer>
-  <p>Works with Blackboard Learn Ultra course exports. It can't open other websites to test links, so external links are listed for you to check by hand. Citation and publication dates are left out of the dates check.</p>
+  <p>Works with Blackboard Learn Ultra course exports. It can't open other websites to test links, so external links are listed for you to check by hand. Each section explains how it is checked.</p>
   <p>Part of <a href="https://mattoteacher.github.io/learn-tools/">learn-tools</a>.</p>
 </footer>
 </div>
@@ -297,6 +303,7 @@ const BBConvert = (() => {
   const PAGE_W = 9026; // A4 text width in twips (1" margins)
 
   function makeDocx(htmlString, title, ctx) {
+    let cellStyle = '';
     // ctx: { readImage: path -> Uint8Array|null }
     const doc = new DOMParser().parseFromString(`<!DOCTYPE html><html><body>${htmlString}</body></html>`, 'text/html');
     const rels = [], media = [];
@@ -383,6 +390,7 @@ const BBConvert = (() => {
     function para(pieces, ppr = '') {
       const x = piecesXml(pieces);
       if (x === null) return '';
+      if (cellStyle && !ppr.includes('pStyle')) ppr = `<w:pStyle w:val="${cellStyle}"/>` + ppr;
       return `<w:p>${ppr ? `<w:pPr>${ppr}</w:pPr>` : ''}${x}</w:p>`;
     }
 
@@ -435,7 +443,9 @@ const BBConvert = (() => {
       const cw = Math.floor(PAGE_W / ncol);
       const wAttr = (el.getAttribute('data-widths') || '').split(',').map(Number).filter(n => n > 0);
       const colW = i => wAttr.length === ncol ? Math.floor(PAGE_W * wAttr[i] / wAttr.reduce((a, b) => a + b, 0)) : cw;
-      let x = `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="${cw * ncol}" w:type="dxa"/><w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr><w:tblGrid>${Array.from({ length: ncol }, (_, i) => `<w:gridCol w:w="${colW(i)}"/>`).join('')}</w:tblGrid>`;
+      const fixed = wAttr.length === ncol;
+      const prevCell = cellStyle; if (fixed) cellStyle = 'TableText';
+      let x = `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="${fixed ? Array.from({ length: ncol }, (_, i) => colW(i)).reduce((a, b) => a + b, 0) : cw * ncol}" w:type="dxa"/>${fixed ? '<w:tblLayout w:type="fixed"/>' : ''}<w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr><w:tblGrid>${Array.from({ length: ncol }, (_, i) => `<w:gridCol w:w="${colW(i)}"/>`).join('')}</w:tblGrid>`;
       rows.forEach((r, ri) => {
         const cells = [...r.children].filter(c => /^T[DH]$/.test(c.tagName));
         const isHead = ri === 0 && (cells.every(c => c.tagName === 'TH') || r.closest('thead'));
@@ -452,6 +462,7 @@ const BBConvert = (() => {
         for (; used < ncol; used++) x += `<w:tc><w:tcPr><w:tcW w:w="${colW(used)}" w:type="dxa"/></w:tcPr><w:p/></w:tc>`;
         x += '</w:tr>';
       });
+      cellStyle = prevCell;
       return x + '</w:tbl><w:p/>';
     }
 
@@ -467,7 +478,7 @@ const BBConvert = (() => {
     zip.file('docProps/core.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${escXml(title)}</dc:title><dc:language>en-GB</dc:language></cp:coreProperties>`);
     zip.file('word/_rels/document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>${rels.join('')}</Relationships>`);
     zip.file('word/settings.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:defaultTabStop w:val="720"/><w:characterSpacingControl w:val="doNotCompress"/></w:settings>`);
-    zip.file('word/styles.xml', STYLES);
+    zip.file('word/styles.xml', ctx.accent ? STYLES.replace(/154734/g, ctx.accent) : STYLES);
     zip.file('word/numbering.xml', numbering(nums));
     zip.file('word/document.xml', docXml);
     media.forEach(m => zip.file(`word/media/${m.name}`, m.data));
@@ -485,7 +496,7 @@ const BBConvert = (() => {
   }
 
   const hStyle = (n, sz, extra = '') => `<w:style w:type="paragraph" w:styleId="Heading${n}"><w:name w:val="heading ${n}"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:uiPriority w:val="9"/><w:qFormat/><w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="${n <= 2 ? 360 : 240}" w:after="120"/><w:outlineLvl w:val="${n - 1}"/></w:pPr><w:rPr><w:b/>${extra}<w:color w:val="154734"/><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr></w:style>`;
-  const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Arial" w:cs="Arial"/><w:sz w:val="24"/><w:szCs w:val="24"/><w:lang w:val="en-GB" w:eastAsia="en-GB" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="160" w:line="300" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/><w:rPr><w:color w:val="1A1A1A"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="12" w:space="6" w:color="154734"/></w:pBdr><w:spacing w:after="240"/></w:pPr><w:rPr><w:b/><w:color w:val="154734"/><w:sz w:val="44"/><w:szCs w:val="44"/></w:rPr></w:style>${hStyle(1, 36)}${hStyle(2, 30)}${hStyle(3, 27)}${hStyle(4, 25)}${hStyle(5, 24)}${hStyle(6, 24, '<w:i/>')}<w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="80"/><w:ind w:left="720"/><w:contextualSpacing/></w:pPr></w:style><w:style w:type="character" w:default="1" w:styleId="DefaultParagraphFont"><w:name w:val="Default Paragraph Font"/><w:uiPriority w:val="1"/><w:semiHidden/></w:style><w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:rPr><w:color w:val="004F71"/><w:u w:val="single"/></w:rPr></w:style><w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:semiHidden/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style><w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/><w:basedOn w:val="TableNormal"/><w:pPr><w:spacing w:before="60" w:after="60" w:line="240" w:lineRule="auto"/></w:pPr><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:left w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:right w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="808080"/></w:tblBorders><w:tblCellMar><w:top w:w="60" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style></w:styles>`;
+  const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Arial" w:cs="Arial"/><w:sz w:val="24"/><w:szCs w:val="24"/><w:lang w:val="en-GB" w:eastAsia="en-GB" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="160" w:line="300" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/><w:rPr><w:color w:val="1A1A1A"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="12" w:space="6" w:color="154734"/></w:pBdr><w:spacing w:after="240"/></w:pPr><w:rPr><w:b/><w:color w:val="154734"/><w:sz w:val="44"/><w:szCs w:val="44"/></w:rPr></w:style>${hStyle(1, 36)}${hStyle(2, 30)}${hStyle(3, 27)}${hStyle(4, 25)}${hStyle(5, 24)}${hStyle(6, 24, '<w:i/>')}<w:style w:type="paragraph" w:styleId="TableText"><w:name w:val="Table Text"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:before="0" w:after="60" w:line="264" w:lineRule="auto"/></w:pPr><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="80"/><w:ind w:left="720"/><w:contextualSpacing/></w:pPr></w:style><w:style w:type="character" w:default="1" w:styleId="DefaultParagraphFont"><w:name w:val="Default Paragraph Font"/><w:uiPriority w:val="1"/><w:semiHidden/></w:style><w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:rPr><w:color w:val="004F71"/><w:u w:val="single"/></w:rPr></w:style><w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:semiHidden/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style><w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/><w:basedOn w:val="TableNormal"/><w:pPr><w:spacing w:before="60" w:after="60" w:line="240" w:lineRule="auto"/></w:pPr><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:left w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:right w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="808080"/></w:tblBorders><w:tblCellMar><w:top w:w="60" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style></w:styles>`;
 
   /* ---------------- Blackboard parsing ---------------- */
   async function convert(zip, opts = {}) {
@@ -622,7 +633,7 @@ const BBConvert = (() => {
           if (!info.displayName && info.linkName) info.displayName = info.linkName;
           if (IMG_EXT.test(nm)) { placeBlock(a, mk(`<p><img data-zip="${escHtml(XID[x].path)}" alt="${escHtml(info.alternativeText || '')}"></p>`)); continue; }
           const saved = folderFiles.add(x);
-          placeBlock(a, mk(`<p><strong>Attached file:</strong> ${escHtml(info.displayName || nm)}, saved in this folder as <em>${escHtml(saved)}</em></p>`));
+          placeBlock(a, mk(`<p data-file="${escHtml(XID[x].path)}" data-name="${escHtml(nm)}"><strong>Attached file:</strong> ${escHtml(info.displayName || nm)}, saved in this folder as <em>${escHtml(saved)}</em></p>`));
           continue;
         }
         if (bt === 'video') {
@@ -710,7 +721,7 @@ const BBConvert = (() => {
         const x = m[1];
         if (XID[x] && !folderFiles.has(x) && !/^UNSAFE_HTML/.test(XID[x].name) && !IMG_EXT.test(XID[x].name) && !bodyHtml.includes(`xid-${x}`)) {
           const saved = folderFiles.add(x);
-          parts.push(`<p><strong>Attached file:</strong> saved in this folder as <em>${escHtml(saved)}</em></p>`);
+          parts.push(`<p data-file="${escHtml(XID[x].path)}" data-name="${escHtml(XID[x].name)}"><strong>Attached file:</strong> saved in this folder as <em>${escHtml(saved)}</em></p>`);
         }
       }
       const low = raw.toLowerCase();
@@ -831,6 +842,8 @@ const BBConvert = (() => {
 
   return { convert, makeDocx, safe };
 })();
+
+
 
 
 </script>
@@ -975,37 +988,260 @@ const BBCheck = (() => {
     return '';
   };
 
-  /* ---------- run ---------- */
-  async function run(res) {
-    const CAT = {
-      dates: { name: 'Dates and times', why: 'Every date, day and time in the course will need checking for the new session. Citation and publication dates are left out.', issues: [] },
-      rollover: { name: 'Links that will break after rollover', why: 'Links that point into this run of the course on Learn keep pointing here when the course is copied, so students in the new course end up in the old one.', issues: [] },
-      live: { name: 'Live session links', why: 'Collaborate, Teams and Zoom session links usually change for every new run of a course.', issues: [] },
-      readings: { name: 'Readings outside the Resource List', why: "Readings belong in the course's Resource List (Leganto), which keeps links working, tracks availability and handles library digitisations. Attached scans of articles or chapters may also fall outside the University's copying licence.", issues: [] },
-      external: { name: 'External links to check', why: "This tool can't test other websites from the browser, so each link is listed once with every place it appears. Open each one and check it still works and is still the right page.", issues: [] },
-      files: { name: 'File names', why: "Students see file names in their downloads, long after leaving Learn. A good name says what's inside without needing the course around it: course code, topic, then type. Leave out years so files don't need renaming at every rollover.", issues: [] },
-    };
-    const externalMap = new Map();
-    const seenFiles = new Map();
+  /* ---------- University template pages ----------
+     Pages the University course template provides, with the same content in every course.
+     They are left out of the audit unless "Include University template pages" is ticked.
+     Matched on the page's own title, ignoring case, punctuation and emoji. Add or remove titles here. */
+  const TEMPLATE_PAGES = [
+    'Read Me First - Guidance for Staff',
+    'Read Me First - Variables and Placeholders',
+    'Emoticons',
+    'Help and Support',
+    'Library Resources (Online)',
+    'University systems and IT support',
+    'University of Edinburgh Feedback',
+    'Have your say - University of Edinburgh Feedback',
+  ];
+  const normTitle = t => String(t).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  const TEMPLATE_SET = new Set(TEMPLATE_PAGES.map(normTitle));
+  const isTemplatePage = page => TEMPLATE_SET.has(normTitle(page.loc[page.loc.length - 1]));
 
+  /* ---------- readings ---------- */
+  // wording that says a reading is assigned
+  const ASSIGNED_STRONG = /\b(?:essential|required|core|key|set|assigned|compulsory|mandatory|weekly|this week'?s|pre-?(?:session|class|seminar|lecture)|preparatory)\s+(?:readings?|reading list|texts?|articles?|papers?|chapters?)\b|\bcopy of (?:the |this week'?s |today'?s )?(?:reading|article|paper|chapter|text)\b|\breadings? for (?:this|the|next) (?:week|session|seminar|lecture|class|topic)\b|\b(?:your|the) reading for\b/i;
+  const ASSIGNED_WEAK = /\bplease (?:\w+ )?read\b|\b(?:you|students) (?:should|must|will need to|need to|are expected to|are asked to) read\b|\bread (?:the following|this|these|chapters?|pages?|the (?:article|paper|chapter|report|book|text))\b|\bbefore (?:the|this|next|our|each)\b[^.]{0,40}\bread\b|\bfor this week,? (?:please )?read\b/gi;
+  // "read over the course information" is not a reading
+  const NOT_READING_OBJECT = /^\s*(?:over|through|up on)?\s*(?:the |this |our |your |all )?(?:course|module|programme|program|assessment|assignment|page|instructions?|guidance|information|handbook|announcements?|discussion|feedback|rubric|criteria|brief|posts?|emails?|messages?|questions?|task|activity|policy|policies|terms|regulations|marking)\b/i;
+  const assignedMatch = t => {
+    const m = t.match(ASSIGNED_STRONG);
+    if (m) return m[0];
+    ASSIGNED_WEAK.lastIndex = 0;
+    let w;
+    while ((w = ASSIGNED_WEAK.exec(t))) if (!NOT_READING_OBJECT.test(t.slice(w.index + w[0].length, w.index + w[0].length + 60))) return w[0];
+    return '';
+  };
+  // wording that makes it optional
+  const OPTIONAL = /\b(?:if you(?:'re| are)? (?:interested|curious)|optional|further reading|additional reading|wider reading|extra reading|supplementary|for (?:more|further) (?:information|detail|details)|find out more|learn more|you (?:may|might|could) (?:also )?(?:like|want|wish|find)|if you (?:want|wish|would like|have time)|for those (?:interested|who)|not (?:essential|required|compulsory)|background reading|recommended if|of interest)\b/i;
+  // titles and headings that name a reading section
+  const READING_TITLE = /\b(?:readings?|reading list|reading materials?|set texts?|course texts?|key texts?|core texts?|bibliography)\b/i;
+  const DOC_EXT = /\.(?:pdf|docx?|epub|rtf|odt)(?:$|[?#])/i;
+
+  /* ---------- videos ---------- */
+  const VIDEO_HOSTS = [
+    [/(?:^|\.)(?:youtube\.com|youtube-nocookie\.com|youtu\.be)$/i, 'YouTube'],
+    [/(?:^|\.)media\.ed\.ac\.uk$/i, 'Media Hopper'],
+    [/(?:^|\.)kaf-ultra\.learn\.ed\.ac\.uk$/i, 'Media Hopper'],
+    [/(?:^|\.)vimeo\.com$/i, 'Vimeo'],
+    [/(?:^|\.)ted\.com$/i, 'TED'],
+    [/(?:^|\.)panopto\.(?:eu|com)$/i, 'Panopto'],
+    [/(?:^|\.)dailymotion\.com$/i, 'Dailymotion'],
+  ];
+  const VIDEO_EXT = /\.(mp4|m4v|mov|webm|avi|wmv|mkv)$/i, AUDIO_EXT = /\.(mp3|m4a|wav|aac|ogg)$/i;
+  const TRANSCRIPT = /\btranscripts?\b|\bcaptions?\b|\bsubtitles?\b|\.(?:vtt|srt)\b/i;
+  function videoPlatform(href) {
+    let u; try { u = new URL(href); } catch (e) { return ''; }
+    const host = u.hostname.toLowerCase();
+    if (/bbcollab\.com$/.test(host) && /\/recording/i.test(u.pathname)) return 'Collaborate recording';
+    if (/(?:^|\.)ted\.com$/.test(host) && !/\/talks\//.test(u.pathname)) return '';
+    for (const [re, name] of VIDEO_HOSTS) if (re.test(host)) return name;
+    return '';
+  }
+  // one key per video, whatever form its address takes
+  function videoKey(href) {
+    let u; try { u = new URL(href); } catch (e) { return href; }
+    const host = u.hostname.toLowerCase();
+    if (/youtu\.be$/.test(host)) return 'yt:' + u.pathname.slice(1);
+    if (/youtube/.test(host)) return 'yt:' + (u.searchParams.get('v') || (u.pathname.match(/\/(?:embed|shorts|live)\/([\w-]+)/) || [])[1] || u.pathname);
+    const mh = href.match(/(?:\/media\/(?:[^\/]+\/)?|entryid\/|\/id\/)(\d_[a-z0-9]{8})/i);
+    if (mh) return 'mh:' + mh[1];
+    return href.replace(/#.*$/, '').replace(/\/$/, '');
+  }
+  // Media Hopper addresses often carry the title: /media/PPI+Meeting+-+January+2022/1_hfrajdr7
+  function titleFromUrl(href) {
+    const m = href.match(/media\.ed\.ac\.uk\/media\/([^\/?#]+)\/\d_[a-z0-9]{8}/i);
+    if (!m) return '';
+    try { return decodeURIComponent(m[1].replace(/\+/g, ' ')).trim(); } catch (e) { return ''; }
+  }
+  const durationOf = t => { const m = String(t).match(/\((\d{1,2}:\d{2}(?::\d{2})?)\)/); return m ? m[1] : ''; };
+
+  /* ---------- unfilled template text ---------- */
+  const PLACEHOLDER = /\[(?=[^\]]*[A-Za-z]{2})[^\[\]\n]{2,80}\]|\bX{3,}\b|\bTB[CAD]\b|\b(?:insert|add) (?:link|date|name|details|text) here\b/g;
+  const notPlaceholder = m => /^\[(?:\s*\d+(?:\s*[-–,]\s*\d+)*\s*|sic|\.\.\.|…|pdf|PDF[^\]]*|opens? in (?:a )?new (?:window|tab)|[A-Z][A-Za-z'-]+(?: et al\.?| and [A-Z][A-Za-z'-]+)?,? \d{4}[a-z]?(?:,? p+\. ?\d+)?)\]$/i.test(m);
+
+  // a usable host name, or '' if the address can't work
+  function hostOf(href) {
+    let u; try { u = new URL(href); } catch (e) { return ''; }
+    const h = u.hostname.toLowerCase();
+    return /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(h) || h === 'localhost' ? h : '';
+  }
+
+  /* ---------- run ---------- */
+  async function run(res, opts = {}) {
+    const includeTemplate = !!opts.includeTemplate;
+    const CAT = {
+      dates: { name: 'Dates and times', why: 'Every date, day and time in the course will need checking for the new session.', rules: [
+        'Flags days of the week, dates (14 October, 14/10/2026, Mon 14th Oct), months, clock times (2pm, 14:00, noon, midday), "Semester 1" and academic years (2024-25, 24/25).',
+        'Checks folder and item titles as well as page text.',
+        'Ignores years on their own, publication dates in references and citations (anything with et al., a DOI, a journal name or a year in brackets), video durations like (02:06), and anything inside a web address.',
+      ], issues: [] },
+      placeholders: { name: 'Unfilled template text', why: 'Placeholder text from the course template, or notes left for later, that should be replaced before students see the course.', rules: [
+        'Flags text in square brackets, like [Link to survey] or [Course name / ID / Session].',
+        'Also flags XXX, TBC, TBA and TBD, and "insert link here" style notes.',
+        'Ignores citation brackets like [1], [Smith, 2020], [sic] and [PDF].',
+      ], issues: [] },
+      broken: { name: 'Broken links', why: "Links that can't work as they are, whatever course they're in. Fix these in the current course too.", rules: [
+        'Flags links whose web address is not valid, for example "http://Week 4".',
+        'Flags links whose text shows one web address but which actually go to a different website.',
+      ], issues: [] },
+      rollover: { name: 'Links that will break after rollover', why: 'Links that point into this run of the course on Learn keep pointing here when the course is copied, so students in the new course end up in the old one.', rules: [
+        'Flags any Learn web address that contains this course\'s ID (for example a long link to a discussion board, test or folder).',
+        'Also flags Learn links into other courses, and links to files stored elsewhere on Learn.',
+      ], issues: [] },
+      live: { name: 'Live session links', why: 'Collaborate, Teams and Zoom session links usually change for every new run of a course.', rules: [
+        'Flags Collaborate guest and session links, Teams meeting links and Zoom links.',
+        'Collaborate recordings are flagged too, with separate advice, since they belong to a previous run.',
+      ], issues: [] },
+      readings: { name: 'Readings outside the Resource List', why: "Assigned readings belong in the course's Resource List (Leganto), which keeps links working, tracks availability and handles library digitisations. Attached copies of articles or chapters may also fall outside the University's copying licence.", rules: [
+        'Flags a link or attached file when the text around it says it is assigned reading: "essential reading", "required reading", "this week\'s reading", "please read", "read the following", "a copy of the reading" and similar.',
+        'Flags documents and journal-style links on a page, or under a heading, called "Readings", "Reading list", "Set texts" and similar.',
+        'Flags attached PDFs that are published journal articles (they carry a DOI), wherever they appear.',
+        'Skips anything described as optional: "further reading", "if you\'re interested", "find out more", "you might also like" and similar.',
+        'Skips Resource List items themselves.',
+      ], issues: [] },
+      videos: { name: 'Videos', why: 'Every video in the course, with where it sits, so you can check each one still plays and has captions or a transcript.', rules: [
+        'Lists embedded and linked videos from Media Hopper, YouTube, Vimeo, TED and Panopto, Collaborate recordings, and video or audio files attached to the course.',
+        'Looks for a transcript on the same page: an attached file or link mentioning a transcript, captions or subtitles, or a .vtt or .srt file.',
+        "It can't see whether captions are switched on in Media Hopper or YouTube, so those need checking by hand.",
+      ], issues: [] },
+      external: { name: 'External links to check', why: "This tool can't test other websites from the browser, so each link is listed once with every place it appears. Open each one and check it still works and is still the right page.", rules: [
+        'Lists every link to a website outside Learn, once, with every place it appears.',
+        'Videos, live session links and readings are listed in their own sections instead.',
+        'Also notes vague link text ("click here", "link", "here") and links whose text is the bare web address.',
+      ], issues: [] },
+      files: { name: 'File names', why: "Students see file names in their downloads, long after leaving Learn. A good name says what's inside without needing the course around it: course code, topic, then type. Leave out years so files don't need renaming at every rollover.", rules: [
+        'Flags names containing a year, academic year or month.',
+        'Flags names that don\'t describe the content (Document1, Week 3, Slides, IMG_2034) or look like codes.',
+        'Flags version labels such as "final", "v2", "draft" or "(1)".',
+        'Suggests a name built from the course code and the topic of the folder it sits in.',
+      ], issues: [] },
+    };
+
+    const pages = res.pages.filter(p => includeTemplate || !isTemplatePage(p));
+    const excludedTemplate = [...new Set(res.pages.filter(p => !includeTemplate && isTemplatePage(p)).map(p => p.loc.join(' › ')))];
+    const externalMap = new Map();
+    const seenFiles = new Set();
     const seenTitles = new Set();
-    for (const page of res.pages) {
-      // dates in folder and item titles
+
+    const pushPlaceholders = (text, loc, heading, fix) => {
+      const ranges = [];
+      PLACEHOLDER.lastIndex = 0;
+      let m;
+      while ((m = PLACEHOLDER.exec(text))) if (!notPlaceholder(m[0])) ranges.push([m.index, m.index + m[0].length]);
+      if (ranges.length) CAT.placeholders.issues.push({ loc, heading, snippet: snippet(text, ranges), fix });
+    };
+
+    for (const page of pages) {
+      const locText = page.loc.join(' › ');
+
+      // titles: dates and placeholders
       page.loc.forEach((t, i) => {
         const key = page.loc.slice(0, i + 1).join('\u0001');
         if (seenTitles.has(key)) return;
         seenTitles.add(key);
+        const where = page.loc.slice(0, i).join(' › ') || '(top level of the course)';
         const r = findDates(t);
-        if (r.length && !looksLikeReference(t)) CAT.dates.issues.push({ loc: page.loc.slice(0, i).join(' › ') || '(top level of the course)', heading: '', snippet: snippet(t, r), fix: `Update the ${i === 0 ? 'folder' : 'item'} title for the new session.`, title: true });
+        if (r.length && !looksLikeReference(t)) CAT.dates.issues.push({ loc: where, heading: '', snippet: snippet(t, r), fix: `Update the ${i === 0 ? 'folder' : 'item'} title for the new session.` });
+        pushPlaceholders(t, where, '', `Replace the placeholder in the ${i === 0 ? 'folder' : 'item'} title.`);
       });
-      const locText = page.loc.join(' › ');
+
       const doc = new DOMParser().parseFromString(`<!DOCTYPE html><html><body>${page.html}</body></html>`, 'text/html');
       const body = doc.body;
-      // ignore the converter's own explanatory notes
-      body.querySelectorAll('p').forEach(p => { const s = p.querySelector('strong'); if (s && /^(Attached file|Video|Media Hopper video|Embedded content|Link to a tool on Learn|Interactive content)/.test(s.textContent) && p.firstElementChild === s) { const a = p.querySelector('a[data-kind]'); if (!a) p.remove(); } });
+      const headings = [...body.querySelectorAll('h1,h2,h3,h4,h5,h6')];
+      const lastTitle = normTitle(page.loc[page.loc.length - 1]);
+      const headingBefore = el => { let hd = ''; for (const x of headings) { if (x === el) break; if (x.compareDocumentPosition(el) & 4) hd = x.textContent.replace(/\s+/g, ' ').trim(); } return normTitle(hd) === lastTitle ? '' : hd; };
+      const isNote = el => { const s = el.querySelector && el.querySelector(':scope > strong'); return el.tagName === 'P' && s && el.firstElementChild === s && /^(Attached file|Video|Media Hopper video|Embedded content|Link to a tool on Learn|Interactive content)/.test(s.textContent); };
+      const blockOf = el => el.closest('p,li,td,th,h1,h2,h3,h4,h5,h6,dd,dt,blockquote') || el.closest('div') || body;
+      // the text a reader sees just before this block (skipping our own notes)
+      const prevText = blk => {
+        let n = blk;
+        for (let hops = 0; n && hops < 4; hops++) {
+          let p = n.previousElementSibling;
+          while (p && isNote(p)) p = p.previousElementSibling;
+          if (p) return /^H[1-6]$/.test(p.tagName) ? '' : p.textContent.replace(/\s+/g, ' ').trim().slice(-300);
+          n = n.parentElement;
+          if (!n || n === body) return '';
+        }
+        return '';
+      };
+      const pageReadingTitle = page.loc.find(t => READING_TITLE.test(t) && !OPTIONAL.test(t)) || '';
 
-      // walk text blocks in order, tracking the nearest heading
-      let heading = '';
+      // page-level transcript evidence (for videos)
+      const transcriptEl = [...body.querySelectorAll('p[data-file], a[href]')].find(e => TRANSCRIPT.test(e.textContent + ' ' + (e.getAttribute('data-name') || '') + ' ' + (e.getAttribute('href') || '')))
+        || page.files.find(f => TRANSCRIPT.test(f.name));
+      const transcriptName = !transcriptEl ? '' : transcriptEl.nodeType ? (transcriptEl.getAttribute('data-name') || (t => t.length > 90 ? t.slice(0, 90).replace(/\s+\S*$/, '') + '…' : t)(transcriptEl.textContent.replace(/\s+/g, ' ').trim())) : transcriptEl.name;
+      const videoSeen = new Set();
+      const addVideo = (title, url, platform, heading, fileName) => {
+        if (heading && normTitle(heading) === normTitle(page.loc[page.loc.length - 1])) heading = '';
+        const key = url ? videoKey(url) : fileName;
+        if (videoSeen.has(key)) return;
+        videoSeen.add(key);
+        if (!title && url) title = titleFromUrl(url);
+        if (heading && title && normTitle(heading) === normTitle(title)) heading = '';
+        const dur = durationOf(title);
+        const label = title || fileName || url;
+        CAT.videos.issues.push({ loc: locText, heading,
+          snippet: `<mark>${esc(label)}</mark><br>${esc(platform)}${dur && !label.includes(dur) ? `, ${esc(dur)}` : ''}`, url: url || '',
+          fix: platform === 'Collaborate recording'
+            ? "A recording from a previous run (also listed under Live session links). Replace or remove it for the new session."
+            : transcriptName ? `Check it still plays and has captions. Transcript found on this page: ${esc(transcriptName)}.` : 'Check it still plays and has accurate captions. No transcript was found on this page; add one if the video carries content students need.' });
+      };
+
+      // readings: collect candidates before the notes are removed
+      const readingItems = [];
+      const considerReading = (el, label, kind, href) => {
+        const blk = blockOf(el);
+        const own = blk === body ? label : blk.textContent.replace(/\s+/g, ' ').trim();
+        const ctx = (prevText(blk) + ' ' + own).trim();
+        const hd = headingBefore(blk);
+        if (OPTIONAL.test(ctx) || OPTIONAL.test(hd)) return;
+        if (/\bresource lists?\b|\breading lists?\b|\bleganto\b/i.test(own + ' ' + label)) return;
+        const m = assignedMatch(ctx);
+        const docLike = kind === 'file' ? DOC_EXT.test(label) : (classifyLink(href, res.courseId) || {}).type === 'reading' || DOC_EXT.test(href) || looksLikeReference(own) || looksLikeReference(label);
+        let reason = '';
+        if (m) reason = `described as assigned reading ("${m}")`;
+        else if (docLike && READING_TITLE.test(hd)) reason = `listed under the heading "${hd}"`;
+        else if (docLike && pageReadingTitle) reason = `on a page called "${pageReadingTitle}"`;
+        if (!reason) return false;
+        const shown = own.length > 240 ? '' : own;
+        const at = shown ? shown.indexOf(label) : -1;
+        readingItems.push({ heading: hd, kind, href, label,
+          snippet: (at > -1 ? snippet(shown, [[at, at + label.length]]) : `<mark>${esc(label.length > 120 ? label.slice(0, 120) + '…' : label)}</mark>`) + `<br><em>Why: ${esc(reason)}</em>` });
+        return true;
+      };
+      const flaggedFiles = new Set();
+      for (const p of body.querySelectorAll('p[data-file]')) {
+        const name = p.getAttribute('data-name') || '';
+        if (DOC_EXT.test(name) && considerReading(p, name, 'file')) flaggedFiles.add(p.getAttribute('data-file'));
+      }
+      // item-level attachments (not in the page text) on a reading-titled item
+      for (const f of page.files) {
+        if (f.image || flaggedFiles.has(f.path) || !DOC_EXT.test(f.name) || page.resourceList) continue;
+        if (pageReadingTitle && ![...body.querySelectorAll('p[data-file]')].some(p => p.getAttribute('data-file') === f.path)) {
+          readingItems.push({ heading: '', kind: 'file', label: f.name, snippet: `<mark>${esc(f.name)}</mark><br><em>Why: ${esc(`attached to an item called "${pageReadingTitle}"`)}</em>` });
+          flaggedFiles.add(f.path);
+        }
+      }
+
+      // attached video and audio files
+      for (const f of page.files) {
+        if (VIDEO_EXT.test(f.name)) addVideo('', '', 'Video file attached to the course', '', f.name);
+        else if (AUDIO_EXT.test(f.name)) addVideo('', '', 'Audio file attached to the course', '', f.name);
+      }
+
+      // remove our own notes, keeping embedded video links
+      body.querySelectorAll('p').forEach(p => { if (isNote(p) && !p.querySelector('a[data-kind]')) p.remove(); });
+
+      // text blocks: dates and placeholders
       const BLOCKS = 'h1,h2,h3,h4,h5,h6,p,li,td,th,dt,dd,pre,figcaption,caption,blockquote,div';
       const CONTAINERS = new Set(['UL', 'OL', 'TABLE', 'TBODY', 'THEAD', 'TR', 'P', 'DIV', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'PRE', 'DL', 'FIGURE', 'SECTION']);
       const ownText = el => {
@@ -1016,38 +1252,52 @@ const BBCheck = (() => {
         }
         return t.replace(/\s+/g, ' ').trim();
       };
-      let inReadings = false;
+      let heading = '', inRefs = false;
       for (const el of body.querySelectorAll(BLOCKS)) {
         const t = ownText(el);
-        if (/^H[1-6]$/.test(el.tagName)) {
-          heading = el.getAttribute('data-prompt') ? t : t;
-          inReadings = /\b(?:reading|readings|references|bibliography|further reading|literature)\b/i.test(t);
-        }
+        if (/^H[1-6]$/.test(el.tagName)) { heading = t; inRefs = /\b(?:references|bibliography|further reading|reading list|readings)\b/i.test(t); }
         if (!t) continue;
-        if (looksLikeReference(t) || (inReadings && el.tagName === 'LI')) continue;
+        const hd = /^H[1-6]$/.test(el.tagName) ? '' : heading;
+        pushPlaceholders(t, locText, hd, 'Replace the placeholder with the real details, or remove it.');
+        if (looksLikeReference(t) || (inRefs && el.tagName === 'LI')) continue;
         const ranges = findDates(t);
-        if (ranges.length) CAT.dates.issues.push({ loc: locText, heading: /^H[1-6]$/.test(el.tagName) ? '' : heading, snippet: snippet(t, ranges), fix: /\b20\d{2}\s*[\/\-–]/.test(t) ? 'Update dates, days and the academic year for the new session.' : 'Update for the new session.' });
+        if (ranges.length) CAT.dates.issues.push({ loc: locText, heading: hd, snippet: snippet(t, ranges), fix: /\b20\d{2}\s*[\/\-–]|\b\d{2}\/\d{2}\b/.test(t) ? 'Update dates, days and the academic year for the new session.' : 'Update for the new session.' });
       }
 
       // links
-      const readingsHere = [];
       const linkEls = [...body.querySelectorAll('a[href]')];
-      if (page.url) { const a = doc.createElement('a'); a.href = page.url; a.textContent = page.title; linkEls.push(a); a.dataset.item = '1'; }
+      if (page.url && !/blti|lti|asmt|turnitin/i.test(page.handler || '') && !/turnitin|\/lti\//i.test(page.url)) { const a = doc.createElement('a'); a.setAttribute('href', page.url); a.textContent = page.title; a.dataset.item = '1'; linkEls.push(a); }
       for (const a of linkEls) {
         const href = a.getAttribute('href');
         const text = a.textContent.replace(/\s+/g, ' ').trim();
+        if (/^https?:/i.test(href.trim())) {
+          const host = hostOf(href.trim());
+          const where = { loc: locText + (a.dataset.item ? ' (link item)' : ''), heading: a.dataset.item ? '' : headingBefore(a) };
+          if (!host) {
+            CAT.broken.issues.push(Object.assign(where, { snippet: `<mark>${esc(text || href)}</mark><br>Goes to: ${esc(href)}`,
+              fix: `This link's web address isn't valid, so it can't open. ${/^(?:https?:\/\/|www\.)/i.test(text) ? 'The link text shows the right address: re-link it to that.' : 'Edit the link and paste in the full web address.'}` }));
+            continue;
+          }
+          const shown = /^(?:https?:\/\/|www\.)\S+$/i.test(text) ? hostOf(/^www\./i.test(text) ? 'http://' + text : text) : '';
+          if (shown && shown.replace(/^www\./, '') !== host.replace(/^www\./, '')) {
+            CAT.broken.issues.push(Object.assign(where, { snippet: `<mark>${esc(text)}</mark><br>Goes to: ${esc(href)}`, url: href,
+              fix: 'The link text shows one web address but the link goes somewhere else. Check which is right and fix the link or the text.' }));
+          }
+        }
         const c = classifyLink(href, res.courseId);
         if (!c) continue;
-        const block = a.closest('p,li,td,th,h1,h2,h3,h4,h5,h6,div');
-        const ctx = block ? block.textContent.replace(/\s+/g, ' ').trim() : text;
+        const block = a.dataset.item ? null : blockOf(a);
+        const ctx = block && block !== body ? block.textContent.replace(/\s+/g, ' ').trim() : text;
         const i = ctx.indexOf(text);
-        const textIsUrl = !text || text.replace(/\/$/, '') === href.replace(/\/$/, '') || text.replace(/^https?:\/\//, '').replace(/\/$/, '') === href.replace(/^https?:\/\//, '').replace(/\/$/, '');
-        const snip = textIsUrl ? '' : (i > -1 && text ? snippet(ctx, [[i, i + text.length]]) : `<mark>${esc(text)}</mark>`);
+        const textIsUrl = !text || text.replace(/^https?:\/\//, '').replace(/\/$/, '') === href.replace(/^https?:\/\//, '').replace(/\/$/, '');
+        const snip = textIsUrl ? '' : (i > -1 && text && ctx.length < 400 ? snippet(ctx, [[i, i + text.length]]) : `<mark>${esc(text)}</mark>`);
         let textNote = '';
-        if (a.dataset.item) textNote = '';
-        else if (VAGUE.test(text.replace(/[.:!]+$/, ''))) textNote = `The link text "${text}" doesn't say where it goes. Rewrite it to describe the destination, for example "Week 3 discussion board".`;
-        else if (/^(?:https?:\/\/|www\.)/i.test(text)) textNote = "The link text is the web address itself, which screen readers read out character by character. Replace it with a short description of the page.";
-        const h = a.dataset.item ? '' : (() => { let n = a, hd = ''; const all = [...body.querySelectorAll('h1,h2,h3,h4,h5,h6')]; for (const x of all) { if (x.compareDocumentPosition(a) & 4) hd = x.textContent.trim(); } return hd; })();
+        if (!a.dataset.item) {
+          if (VAGUE.test(text.replace(/[.:!]+$/, ''))) textNote = `The link text "${text}" doesn't say where it goes. Rewrite it to describe the destination, for example "Week 3 discussion board".`;
+          else if (/^(?:https?:\/\/|www\.)/i.test(text)) textNote = 'The link text is the web address itself, which screen readers read out character by character. Replace it with a short description of the page.';
+        }
+        const h = a.dataset.item ? '' : headingBefore(a);
+        const platform = videoPlatform(href);
 
         if (c.type === 'internal') {
           const fix = {
@@ -1057,72 +1307,78 @@ const BBCheck = (() => {
             learn: 'Points to a page on Learn. Check it still goes to the right place in the new course.',
           }[c.sub];
           CAT.rollover.issues.push({ loc: locText + (a.dataset.item ? ' (link item)' : ''), heading: h, snippet: snip, fix, url: href, note: textNote });
-        } else if (c.type === 'live') {
+          continue;
+        }
+        if (c.type === 'live') {
           CAT.live.issues.push({ loc: locText, heading: h, snippet: snip, url: href, note: textNote,
             fix: c.sub === 'recording' ? "Links to a recording from a previous run. Replace it with the new session's recording once it exists, or remove it." : 'Replace with the link for the new session.' });
-        } else if (c.type === 'reading') {
-          readingsHere.push({ text: text || href, url: href });
-        } else {
-          if (a.dataset.kind === 'embed') continue;
-          const key = href.replace(/#.*$/, '').replace(/\/$/, '');
-          if (!externalMap.has(key)) externalMap.set(key, { url: href, text, places: [], notes: new Set(), video: a.dataset.kind === 'video' || /(?:^|\.)(?:youtube\.com|youtu\.be|vimeo\.com|media\.ed\.ac\.uk)$/i.test(c.host) });
-          const e = externalMap.get(key);
-          e.places.push(locText + (h ? ` › ${h}` : ''));
-          if (textNote) e.notes.add(textNote);
+          if (c.sub === 'recording') addVideo(textIsUrl ? '' : text, href, 'Collaborate recording', h);
+          continue;
         }
+        if (platform || a.dataset.kind === 'video') {
+          addVideo(textIsUrl ? '' : text, href, platform || 'Video', h);
+          continue;
+        }
+        if (a.dataset.kind === 'embed') continue;
+        if (!a.dataset.item && considerReading(a, text || href, 'link', href)) continue;
+        const key = href.replace(/#.*$/, '').replace(/\/$/, '');
+        if (!externalMap.has(key)) externalMap.set(key, { url: href, text, places: [], notes: new Set() });
+        const e = externalMap.get(key);
+        e.places.push(locText + (h ? ` › ${h}` : ''));
+        if (textNote) e.notes.add(textNote);
       }
 
-      // attached files: readings + names
-      const pdfReadings = [];
+      // published journal articles attached as PDFs, wherever they are
       for (const f of page.files) {
-        if (f.image) continue;
-        if (!seenFiles.has(f.path)) {
-          seenFiles.set(f.path, true);
-          const probs = fileNameProblems(f.name);
-          if (probs.length) {
-            const ext = (f.name.match(/\.[A-Za-z0-9]{1,5}$/) || [''])[0];
-            const topic = topicFrom(page.loc);
-            const tw = typeWord(f.name);
-            const suggestion = topic ? `${res.short} ${topic}${tw && !new RegExp(tw, 'i').test(topic) ? ' ' + tw : ''}${ext}`.replace(/[\\/:*?"<>|]/g, '-') : '';
-            CAT.files.issues.push({ loc: locText, heading: '', snippet: `<mark>${esc(f.name)}</mark>`,
-              fix: `This name ${probs.map(p => p.text).join(', and ')}. Rename the file before uploading it to the new course${suggestion ? `, for example "${esc(suggestion)}"` : ''}.` });
-          }
-        }
-        if (/\.pdf$/i.test(f.name) && !page.resourceList) {
-          let why = '';
-          if (/\b(?:et al|journal|article|chapter|paper|reading)\b/i.test(f.name)) why = 'name';
-          else {
-            const b = await res.readBytes(f.path);
-            if (b) {
-              const n = b.length, head = b.subarray(0, Math.min(n, 400000)), tail = b.subarray(Math.max(0, n - 150000));
-              const str = new TextDecoder('latin1').decode(head) + new TextDecoder('latin1').decode(tail);
-              if (/\b10\.\d{4,9}\/[-._;()\/:A-Za-z0-9]{4,}/.test(str) && /doi|prism:|crossmark|Elsevier|Springer|Wiley|Taylor & Francis|SAGE|BMJ/i.test(str)) why = 'doi';
-            }
-          }
-          if (why) pdfReadings.push(f.name);
+        if (flaggedFiles.has(f.path) || !/\.pdf$/i.test(f.name) || page.resourceList) continue;
+        const b = await res.readBytes(f.path);
+        if (!b) continue;
+        const n = b.length;
+        const str = new TextDecoder('latin1').decode(b.subarray(0, Math.min(n, 400000))) + new TextDecoder('latin1').decode(b.subarray(Math.max(0, n - 150000)));
+        if (/\b10\.\d{4,9}\/[-._;()\/:A-Za-z0-9]{4,}/.test(str) && /prism:doi|crossmark|dc:identifier|Elsevier|Springer|Wiley|Taylor & Francis|SAGE Publications|BMJ Publishing|Oxford University Press|Cambridge University Press/i.test(str)) {
+          readingItems.push({ heading: '', kind: 'file', label: f.name, snippet: `<mark>${esc(f.name)}</mark><br><em>Why: the PDF is a published journal article (it carries a DOI)</em>` });
+          flaggedFiles.add(f.path);
         }
       }
-      if ((readingsHere.length || pdfReadings.length) && !page.resourceList) {
-        const parts = [];
-        if (pdfReadings.length) parts.push(`${pdfReadings.length === 1 ? 'Attached file that looks like an article or chapter' : 'Attached files that look like articles or chapters'}: ${pdfReadings.map(n => `<mark>${esc(n)}</mark>`).join(', ')}`);
-        if (readingsHere.length) parts.push(`${readingsHere.length === 1 ? 'Link to a journal, publisher or library page' : `${readingsHere.length} links to journal, publisher or library pages`}: ${readingsHere.slice(0, 4).map(r => `<mark>${esc(r.text.length > 90 ? r.text.slice(0, 90) + '…' : r.text)}</mark>`).join(', ')}${readingsHere.length > 4 ? `, and ${readingsHere.length - 4} more` : ''}`);
-        CAT.readings.issues.push({ loc: locText, heading: '', snippet: parts.join('<br>'), fix: "Add these to the course's Resource List and link to the list here instead. Ask the Library to digitise any scanned articles or chapters rather than attaching the PDF." });
+      for (const r of readingItems) {
+        CAT.readings.issues.push({ loc: locText, heading: r.heading, snippet: r.snippet, url: r.href || '',
+          fix: r.kind === 'file'
+            ? "Add this reading to the course's Resource List and ask the Library to digitise it, rather than attaching a copy. Then point students to the Resource List."
+            : "Add this reading to the course's Resource List and point students to the list instead. The Library keeps Resource List links working." });
+      }
+
+      // file names
+      for (const f of page.files) {
+        if (f.image || seenFiles.has(f.path)) continue;
+        seenFiles.add(f.path);
+        const probs = fileNameProblems(f.name);
+        if (!probs.length) continue;
+        const ext = (f.name.match(/\.[A-Za-z0-9]{1,5}$/) || [''])[0];
+        const topic = topicFrom(page.loc);
+        const tw = typeWord(f.name);
+        const suggestion = topic ? `${res.short} ${topic}${tw && !new RegExp(tw, 'i').test(topic) ? ' ' + tw : ''}${ext}`.replace(/[\\/:*?"<>|]/g, '-') : '';
+        CAT.files.issues.push({ loc: locText, heading: '', snippet: `<mark>${esc(f.name)}</mark>`,
+          fix: `This name ${probs.map(p => p.text).join(', and ')}. Rename the file before uploading it to the new course${suggestion ? `, for example "${esc(suggestion)}"` : ''}.` });
       }
     }
 
     for (const e of externalMap.values()) {
       const places = [...new Set(e.places)];
       CAT.external.issues.push({ loc: places[0] + (places.length > 1 ? ` (and ${places.length - 1} other ${places.length === 2 ? 'place' : 'places'})` : ''), allPlaces: places, heading: '',
-        snippet: e.text && e.text.replace(/\/$/, '') !== e.url.replace(/\/$/, '') ? `${e.video ? 'Video: ' : ''}<mark>${esc(e.text)}</mark>` : (e.video ? 'Video:' : ''), url: e.url,
-        fix: e.video ? 'Check the video still plays and has captions or a transcript.' : 'Open the link and check it still works and is still the right page.', note: [...e.notes][0] || '' });
+        snippet: e.text && e.text.replace(/^https?:\/\//, '').replace(/\/$/, '') !== e.url.replace(/^https?:\/\//, '').replace(/\/$/, '') ? `<mark>${esc(e.text)}</mark>` : '', url: e.url,
+        fix: 'Open the link and check it still works and is still the right page.', note: [...e.notes][0] || '' });
     }
 
-    const order = ['dates', 'rollover', 'live', 'readings', 'external', 'files'];
-    return order.map(id => Object.assign({ id }, CAT[id]));
+    const order = ['dates', 'placeholders', 'broken', 'rollover', 'live', 'readings', 'videos', 'external', 'files'];
+    const cats = order.map(id => Object.assign({ id }, CAT[id]));
+    cats.excludedTemplate = excludedTemplate;
+    return cats;
   }
 
-  return { run, findDates, fileNameProblems, classifyLink, looksLikeReference };
+  return { run, findDates, fileNameProblems, classifyLink, looksLikeReference, TEMPLATE_PAGES, isTemplatePage };
 })();
+
+
 
 
 </script>
@@ -1151,7 +1407,13 @@ const BBCheck = (() => {
   ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
   ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) start(f); });
-  $('staff').addEventListener('change', () => { if (currentFile && !busy) start(currentFile); });
+  // re-run the checks only: no need to read the export again
+  $('template').addEventListener('change', async () => {
+    if (!result || busy) return;
+    busy = true;
+    try { cats = await BBCheck.run(result, { includeTemplate: $('template').checked }); render(); }
+    finally { busy = false; }
+  });
 
   async function start(file) {
     if (busy) return;
@@ -1165,9 +1427,9 @@ const BBCheck = (() => {
       progress('Opening the export', 0.02);
       let zip;
       try { zip = await JSZip.loadAsync(file); } catch (e) { throw new Error('NOTZIP'); }
-      result = await BBConvert.convert(zip, { analyse: true, includeStaff: $('staff').checked, onProgress: (t, f) => progress(t.replace(/^Converting/, 'Reading'), Math.min(0.85, f)) });
+      result = await BBConvert.convert(zip, { analyse: true, includeStaff: true, onProgress: (t, f) => progress(t.replace(/^Converting/, 'Reading'), Math.min(0.85, f)) });
       progress('Running the checks', 0.9);
-      cats = await BBCheck.run(result);
+      cats = await BBCheck.run(result, { includeTemplate: $('template').checked });
       $('prog').hidden = true;
       $('chosen').textContent = `${file.name} (${fmtSize(file.size)}) checked.`;
       render();
@@ -1190,8 +1452,12 @@ const BBCheck = (() => {
     const total = cats.reduce((a, c) => a + c.issues.length, 0);
     const bits = [`${plural(r.sectionTitles.length, 'section')} checked`, `${plural(total, 'thing')} to look at`];
     if (r.hiddenCount) bits.push(`includes ${plural(r.hiddenCount, 'item')} hidden from students`);
-    if (r.skippedStaff.length && !r.includeStaff) bits.push(`staff-only folders left out`);
+    const left = cats.excludedTemplate || [];
+    if (left.length) bits.push(`${plural(left.length, 'University template page')} left out`);
     $('courseMeta').textContent = bits.join('; ') + '.';
+    $('templateList').innerHTML = left.length
+      ? `<details><summary>Template pages left out of this audit</summary><div><ul>${left.map(t => `<li>${esc(t)}</li>`).join('')}</ul><p class="hint">Tick "Include University template pages" in step 1 to audit them too.</p></div></details>`
+      : '';
     $('summary').innerHTML = cats.map(c => `<li><a href="#cat-${c.id}" class="${c.issues.length ? '' : 'zero'}" data-cat="${c.id}"><span>${esc(c.name)}</span><span class="num">${c.issues.length}</span></a></li>`).join('');
     $('report').innerHTML = cats.map(c => {
       const open = c.issues.length && c.issues.length <= 25 ? ' open' : '';
@@ -1205,6 +1471,7 @@ const BBCheck = (() => {
       </li>`).join('');
       return `<details class="cat" id="cat-${c.id}"${open}><summary>${esc(c.name)} <span class="n">${c.issues.length}</span></summary>
         <p class="why">${esc(c.why)}</p>
+        <details class="rules"><summary>How this is checked</summary><div><ul>${c.rules.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div></details>
         ${c.issues.length ? `<ul class="issues">${items}</ul>` : '<p class="none">Nothing found.</p>'}
       </details>`;
     }).join('');
@@ -1218,13 +1485,15 @@ const BBCheck = (() => {
   function checklistHtml() {
     const r = result;
     const total = cats.reduce((a, c) => a + c.issues.length, 0);
-    let h = `<p>Checked on ${esc(today())} from an export of <em>${esc(r.title)}</em>. ${plural(total, 'item')} to look at.</p>
+    const left = cats.excludedTemplate || [];
+    let h = `<p>Audited on ${esc(today())} from an export of <em>${esc(r.title)}</em>. ${plural(total, 'item')} to look at.</p>
+${left.length ? `<p>University template pages left out of this audit: ${left.map(esc).join('; ')}.</p>` : '<p>University template pages are included in this audit.</p>'}
 <p>Work through each table and tick Done as you update the new course on Learn. The Where column shows the folder and page, and the highlighted text shows exactly what was found.</p>
 <h1>Summary</h1><ul>${cats.map(c => `<li>${esc(c.name)}: ${c.issues.length}</li>`).join('')}</ul>`;
     for (const c of cats) {
       h += `<h1>${esc(c.name)}</h1><p>${esc(c.why)}</p>`;
       if (!c.issues.length) { h += '<p><em>Nothing found.</em></p>'; continue; }
-      h += `<table data-widths="26,35,29,10"><thead><tr><th>Where</th><th>What was found</th><th>What to do</th><th>Done</th></tr></thead><tbody>`;
+      h += `<table data-widths="25,32,33,10"><thead><tr><th>Where</th><th>${c.id === 'videos' ? 'Video' : 'What was found'}</th><th>What to do</th><th>Done</th></tr></thead><tbody>`;
       for (const i of c.issues) {
         const where = (i.allPlaces && i.allPlaces.length > 1 ? i.allPlaces : [i.loc + (i.heading ? ` › ${i.heading}` : '')]).map(esc).join('<br>');
         const found = (i.snippet || '') + (i.url ? `${i.snippet ? '<br>' : ''}${i.snippet ? '' : '<mark>'}<a href="${esc(i.url)}">${esc(i.url)}</a>${i.snippet ? '' : '</mark>'}` : '');
@@ -1239,15 +1508,15 @@ const BBCheck = (() => {
   $('saveDoc').addEventListener('click', async () => {
     if (busy || !cats) return;
     busy = true; $('saveDoc').disabled = true; $('err3').innerHTML = ''; $('doneMsg').innerHTML = '';
-    const name = `${result.short} rollover checklist ${new Date().toISOString().slice(0, 10)}.docx`;
+    const name = `${result.short} rollover audit ${new Date().toISOString().slice(0, 10)}.docx`;
     try {
       let handle = null;
       if (typeof window.showSaveFilePicker === 'function') {
         try {
-          handle = await window.showSaveFilePicker({ id: 'bb-rollover-checklist', suggestedName: name, types: [{ description: 'Word document', accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] } }] });
+          handle = await window.showSaveFilePicker({ id: 'bb-rollover-audit', suggestedName: name, types: [{ description: 'Word document', accept: { 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'] } }] });
         } catch (e) { if (e.name === 'AbortError') return; handle = null; }
       }
-      const bytes = await BBConvert.makeDocx(checklistHtml(), `Rollover checklist: ${result.title}`, { readImage: () => null });
+      const bytes = await BBConvert.makeDocx(checklistHtml(), `Rollover audit: ${result.title}`, { readImage: () => null, accent: '830065' });
       const blob = new Blob([bytes], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
       if (handle) {
         const w = await handle.createWritable(); await w.write(blob); await w.close();
