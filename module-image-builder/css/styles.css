@@ -51,3 +51,18 @@ canvas { display: block; width: 100%; height: auto; border-radius: 14px; backgro
 .download-button { width: 100%; margin-top: 16px; border: none; border-radius: 14px; background: var(--accent); color: white; padding: 14px 18px; font-weight: 700; cursor: pointer; }
 .download-button:hover { filter: brightness(.94); }
 @media (max-width: 1040px) { .layout { grid-template-columns: 1fr; } .preview-panel { position: static; } }
+
+/* --- v3 additions --- */
+.tag { font-style: normal; font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; background: var(--accent); color: #fff; border-radius: 999px; padding: 2px 7px; margin-left: 6px; vertical-align: 2px; }
+.style-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.style-option { display: grid; gap: 6px; padding: 6px 6px 8px; border: 1px solid var(--line); border-radius: 14px; background: #fff; cursor: pointer; text-align: center; font-size: .82rem; font-weight: 700; color: var(--ink); transition: border-color .15s ease, transform .15s ease; }
+.style-option:hover { border-color: #b6c5d1; transform: translateY(-1px); }
+.style-option.active { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); background: #fbf4fa; }
+.style-option canvas { border-radius: 9px; background: #eee; }
+.style-option:focus-visible, .module-card:focus-visible, .swatch:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.check { display: flex; gap: 10px; align-items: center; font-size: .92rem; cursor: pointer; }
+.check input { width: 18px; height: 18px; accent-color: var(--accent); }
+.save-box { margin-top: 16px; display: grid; gap: 10px; }
+.optional { font-weight: 400; color: var(--muted); }
+.filename { font-size: .85rem; overflow-wrap: anywhere; }
+.filename code { color: var(--ink); background: #f1f3f6; border-radius: 6px; padding: 2px 6px; }

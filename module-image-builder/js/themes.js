@@ -25,7 +25,7 @@ export function drawTheme(ctx, themeId, base, w, h) {
 
   if (themeId === 'classic') {
     ctx.fillStyle = base; ctx.fillRect(0, 0, w, h);
-    const g = ctx.createRadialGradient(w*.5, h*.45, 20, w*.5, h*.45, w*.55);
+    const g = ctx.createRadialGradient(w*.5, h*.45, w*.04, w*.5, h*.45, w*.55);
     g.addColorStop(0, lighten(base, .28)); g.addColorStop(1, base);
     ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); return;
   }
@@ -75,8 +75,8 @@ export function drawTheme(ctx, themeId, base, w, h) {
 
   if (themeId === 'topography') {
     ctx.fillStyle = base; ctx.fillRect(0, 0, w, h);
-    ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = 3;
-    for (let r = 70; r < 520; r += 34) {
+    ctx.strokeStyle = 'rgba(255,255,255,.16)'; ctx.lineWidth = w*.006;
+    for (let r = w*.14; r < w*1.04; r += w*.068) {
       ctx.beginPath(); ctx.ellipse(w*.18, h*.2, r, r*.62, .6, 0, Math.PI*2); ctx.stroke();
       ctx.beginPath(); ctx.ellipse(w*.92, h*.84, r*.75, r*.42, -.4, 0, Math.PI*2); ctx.stroke();
     } return;

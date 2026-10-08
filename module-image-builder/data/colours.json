@@ -1,13 +1,13 @@
 [
-  { "name": "Purple", "hex": "#830065" },
-  { "name": "Bright pink", "hex": "#D0006F" },
-  { "name": "University red", "hex": "#D50032" },
-  { "name": "Burgundy", "hex": "#A50034" },
-  { "name": "University blue", "hex": "#041E42" },
-  { "name": "Muted blue", "hex": "#004F71" },
-  { "name": "Bright blue", "hex": "#007288" },
-  { "name": "Jade", "hex": "#487A7B" },
-  { "name": "Dark green", "hex": "#154734" },
-  { "name": "Spruce grey", "hex": "#333F48" },
-  { "name": "Muted brown", "hex": "#6D4F47" }
+  { "name": "Purple", "hex": "#830065", "pair": "#D0006F" },
+  { "name": "Bright pink", "hex": "#D0006F", "pair": "#830065" },
+  { "name": "University red", "hex": "#D50032", "pair": "#A50034" },
+  { "name": "Burgundy", "hex": "#A50034", "pair": "#D0006F" },
+  { "name": "University blue", "hex": "#041E42", "pair": "#007288" },
+  { "name": "Muted blue", "hex": "#004F71", "pair": "#487A7B" },
+  { "name": "Bright blue", "hex": "#007288", "pair": "#487A7B" },
+  { "name": "Jade", "hex": "#487A7B", "pair": "#007288" },
+  { "name": "Dark green", "hex": "#154734", "pair": "#487A7B" },
+  { "name": "Spruce grey", "hex": "#333F48", "pair": "#004F71" },
+  { "name": "Muted brown", "hex": "#6D4F47", "pair": "#A50034" }
 ]

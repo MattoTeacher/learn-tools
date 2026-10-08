@@ -17,31 +17,19 @@
     </header>
 
     <section class="layout">
-      <aside class="panel module-panel" aria-label="Module type">
+      <aside class="panel module-panel" aria-label="Image type">
         <h2>Choose type</h2>
         <div class="module-grid" id="moduleTypeGrid">
-          <button class="module-card active" data-mode="teaching">
-            <span>Teaching Week</span>
-            <small>Create a week or combined-weeks image using the calendar icon.</small>
+          <button class="module-card active" data-mode="standard" aria-pressed="true">
+            <span>Standard icon</span>
+            <small>Teaching week, reading week, assessment or welcome icons on a university colour.</small>
           </button>
-          <button class="module-card" data-mode="reading">
-            <span>Reading Week</span>
-            <small>Use the reading week icon for independent study or catch-up weeks.</small>
+          <button class="module-card" data-mode="stylised" aria-pressed="false">
+            <span>Stylised icon <em class="tag">New</em></span>
+            <small>Upload an SVG icon and place it in a designed layout: geometric, editorial, gradient or structured.</small>
           </button>
-          <button class="module-card" data-mode="assessment">
-            <span>Assessment</span>
-            <small>Create an assessment or coursework module image.</small>
-          </button>
-          <button class="module-card" data-mode="welcome">
-            <span>Welcome</span>
-            <small>Create a course information or welcome module image.</small>
-          </button>
-          <button class="module-card" data-mode="other">
-            <span>Other SVG</span>
-            <small>Upload another SVG icon. The Digital Education Unit also has a selection of icons to choose from.</small>
-          </button>
-          <button class="module-card" data-mode="photo">
-            <span>Photo Module</span>
+          <button class="module-card" data-mode="photo" aria-pressed="false">
+            <span>Photo</span>
             <small>Upload an image, crop it, adjust saturation and apply a branded border.</small>
           </button>
         </div>
@@ -50,37 +38,72 @@
       <section class="panel controls-panel">
         <h2>Customise</h2>
 
+        <!-- Shared by both icon modes -->
         <div id="iconControls" class="control-stack">
-          <div class="field calendar-only">
-            <label for="calendarHeader">Calendar header</label>
-            <input id="calendarHeader" type="text" value="Week" maxlength="18" />
+          <div class="field">
+            <label for="iconSelect">Icon</label>
+            <select id="iconSelect"></select>
           </div>
 
-          <div class="field calendar-only">
-            <label for="calendarMain">Calendar text</label>
-            <input id="calendarMain" type="text" value="1" maxlength="18" />
-          </div>
-
-          <div class="field other-only hidden">
+          <div class="field upload-only hidden">
             <label for="svgUpload">Upload SVG icon</label>
             <input id="svgUpload" type="file" accept=".svg,image/svg+xml" />
-            <p class="help">SVG files only. Icons with simple line artwork usually work best.</p>
+            <p class="help">SVG files only. Simple line icons work best. The icon is recoloured automatically to suit the style.</p>
           </div>
 
-          <div class="field">
-            <label>University colour</label>
-            <div class="swatches" id="colourSwatches"></div>
+          <div class="two-col calendar-only">
+            <div class="field">
+              <label for="calendarHeader">Calendar header</label>
+              <input id="calendarHeader" type="text" value="Week" maxlength="18" />
+            </div>
+            <div class="field">
+              <label for="calendarMain">Calendar text</label>
+              <input id="calendarMain" type="text" value="1" maxlength="18" />
+            </div>
           </div>
 
-          <div class="field">
-            <label for="themeSelect">Theme</label>
-            <select id="themeSelect"></select>
-            <p id="themeDescription" class="help"></p>
+          <!-- Standard icon only -->
+          <div id="standardControls" class="control-stack">
+            <div class="field">
+              <label>University colour</label>
+              <div class="swatches" id="colourSwatches"></div>
+            </div>
+            <div class="field">
+              <label for="themeSelect">Theme</label>
+              <select id="themeSelect"></select>
+              <p id="themeDescription" class="help"></p>
+            </div>
+            <div class="field">
+              <label for="iconSize">Icon size</label>
+              <input id="iconSize" type="range" min="40" max="92" value="68" />
+            </div>
           </div>
 
-          <div class="field">
-            <label for="iconSize">Icon size</label>
-            <input id="iconSize" type="range" min="40" max="92" value="68" />
+          <!-- Stylised icon only -->
+          <div id="stylisedControls" class="control-stack hidden">
+            <div class="field">
+              <label id="styleLabel">Style</label>
+              <div class="style-grid" id="stylePicker" role="radiogroup" aria-labelledby="styleLabel"></div>
+              <p id="styleDescription" class="help"></p>
+            </div>
+            <div class="field">
+              <label>University colour</label>
+              <div class="swatches" id="stylisedSwatches"></div>
+            </div>
+            <div class="two-col">
+              <div class="field">
+                <label for="badgeSize">Badge size</label>
+                <input id="badgeSize" type="range" min="24" max="62" value="42" />
+              </div>
+              <div class="field">
+                <label for="stylisedIconSize">Icon size</label>
+                <input id="stylisedIconSize" type="range" min="30" max="85" value="58" />
+              </div>
+            </div>
+            <label class="check">
+              <input id="mirrorLayout" type="checkbox" />
+              Flip layout (mirror the background left to right)
+            </label>
           </div>
         </div>
 
@@ -128,8 +151,23 @@
       <section class="panel preview-panel">
         <h2>Preview</h2>
         <div class="canvas-wrap">
-          <canvas id="previewCanvas" width="500" height="500"></canvas>
+          <canvas id="previewCanvas" width="800" height="800" role="img" aria-label="Module image preview"></canvas>
         </div>
+
+        <div class="save-box">
+          <div class="two-col">
+            <div class="field">
+              <label for="courseId">Course ID</label>
+              <input id="courseId" type="text" placeholder="e.g. MEDI08012" maxlength="40" autocomplete="off" />
+            </div>
+            <div class="field">
+              <label for="fileLabel">Label <span class="optional">(optional)</span></label>
+              <input id="fileLabel" type="text" maxlength="40" autocomplete="off" />
+            </div>
+          </div>
+          <p class="filename">Saves as <code id="fileNamePreview"></code></p>
+        </div>
+
         <button id="downloadBtn" class="download-button">Download PNG</button>
       </section>
     </section>

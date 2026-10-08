@@ -1,75 +1,66 @@
 import { drawTheme } from './themes.js';
-import { fitText } from './utils.js';
+import { fitText, drawTintedIcon } from './utils.js';
 
-export async function renderIconModule(ctx, state) {
+// Standard icon images: university colour + theme, white icon.
+export function renderIconModule(ctx, state) {
   const { canvas } = ctx;
   const w = canvas.width, h = canvas.height;
   drawTheme(ctx, state.theme, state.colour.hex, w, h);
+  if (!state.iconImage) return;
 
-  if (state.theme === 'watermark' && state.iconImage) {
-    ctx.save(); ctx.globalAlpha = .07; ctx.filter = 'none';
-    drawCentredImage(ctx, state.iconImage, w*.5, h*.5, w*1.02, h*1.02, true);
+  if (state.theme === 'watermark') {
+    ctx.save(); ctx.globalAlpha = .07;
+    drawTintedIcon(ctx, state.iconImage, w * .5, h * .5, w * 1.02, '#ffffff');
     ctx.restore();
   }
 
   const iconSize = Math.min(w, h) * (state.iconSize / 100);
-  drawCentredImage(ctx, state.iconImage, w/2, h/2, iconSize, iconSize, true);
+  drawTintedIcon(ctx, state.iconImage, w / 2, h / 2, iconSize, '#ffffff');
 
-  if (state.mode === 'teaching') {
-    drawCalendarText(ctx, state.calendarHeader || 'Week', state.calendarMain || '1', w, h, iconSize);
+  if (state.iconId === 'calendar') {
+    drawCalendarText(ctx, state.calendarHeader, state.calendarMain, (w - iconSize) / 2, (h - iconSize) / 2, iconSize, '#ffffff');
   }
 }
 
 export function renderPhotoModule(ctx, state) {
   const { canvas } = ctx;
   const w = canvas.width, h = canvas.height;
-  ctx.fillStyle = '#e8edf2'; ctx.fillRect(0, 0, w, h);
+  const k = w / 500; // border slider values were designed for a 500px canvas
+  const border = state.borderWidth * k;
+  ctx.clearRect(0, 0, w, h);
 
   if (state.photoImage) {
-    const border = state.borderWidth;
-    const innerW = w - border*2, innerH = h - border*2;
+    const innerW = w - border * 2, innerH = h - border * 2;
     ctx.save();
     ctx.beginPath(); ctx.rect(border, border, innerW, innerH); ctx.clip();
     ctx.filter = `saturate(${state.photoSaturation}%)`;
-    drawCroppedImage(ctx, state.photoImage, border, border, innerW, innerH, state.photoZoom/100, state.photoX/100, state.photoY/100);
+    drawCroppedImage(ctx, state.photoImage, border, border, innerW, innerH, state.photoZoom / 100, state.photoX / 100, state.photoY / 100);
     ctx.restore();
   } else {
     ctx.fillStyle = '#f4f6f8'; ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = '#59616b'; ctx.font = '700 24px Arial'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText('Upload an image', w/2, h/2);
+    ctx.fillStyle = '#59616b'; ctx.font = `700 ${Math.round(24 * k)}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Upload an image', w / 2, h / 2);
   }
 
-  if (state.borderWidth > 0) {
-    ctx.strokeStyle = state.photoColour.hex; ctx.lineWidth = state.borderWidth;
-    ctx.strokeRect(state.borderWidth/2, state.borderWidth/2, w-state.borderWidth, h-state.borderWidth);
+  if (border > 0) {
+    ctx.strokeStyle = state.photoColour.hex; ctx.lineWidth = border;
+    ctx.strokeRect(border / 2, border / 2, w - border, h - border);
   }
 }
 
-function drawCentredImage(ctx, img, cx, cy, maxW, maxH, forceWhite = false) {
-  const scale = Math.min(maxW / img.width, maxH / img.height);
-  const iw = img.width * scale, ih = img.height * scale;
+// Positions are tuned to the calendar SVG: the header sits in the top band,
+// the main text in the open body. (x, y) is the top-left of the icon's box.
+export function drawCalendarText(ctx, header, main, x, y, size, colour) {
+  header = header || 'Week'; main = main || '1';
+  const headerBox = { x: x + size * .16, y: y + size * .17, width: size * .68, height: size * .13 };
+  const mainBox = { x: x + size * .10, y: y + size * .50, width: size * .80, height: size * .28 };
   ctx.save();
-  if (forceWhite) {
-    // Most source SVGs arrive as black line art. This renders them as white
-    // without needing every SVG file to be manually edited.
-    ctx.filter = 'brightness(0) invert(1)';
-  }
-  ctx.drawImage(img, cx - iw/2, cy - ih/2, iw, ih);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = colour;
+  const hs = fitText(ctx, header, headerBox.width, size * .13, 8);
+  ctx.font = `700 ${hs}px Arial`; ctx.fillText(header, headerBox.x + headerBox.width / 2, headerBox.y + headerBox.height / 2);
+  const ms = fitText(ctx, main, mainBox.width, size * .28, 10);
+  ctx.font = `800 ${ms}px Arial`; ctx.fillText(main, mainBox.x + mainBox.width / 2, mainBox.y + mainBox.height / 2);
   ctx.restore();
-}
-
-function drawCalendarText(ctx, header, main, w, h, iconSize) {
-  const iconX = (w - iconSize) / 2;
-  const iconY = (h - iconSize) / 2;
-  // Positions are tuned to the current calendar SVG.
-  // The header sits in the calendar's top band; the main text sits in the open body.
-  const headerBox = { x: iconX + iconSize*.16, y: iconY + iconSize*.17, width: iconSize*.68, height: iconSize*.13 };
-  const mainBox = { x: iconX + iconSize*.10, y: iconY + iconSize*.50, width: iconSize*.80, height: iconSize*.28 };
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = 'white';
-  let hs = fitText(ctx, header, headerBox.width, iconSize*.13, 12);
-  ctx.font = `700 ${hs}px Arial`; ctx.fillText(header, headerBox.x + headerBox.width/2, headerBox.y + headerBox.height/2);
-  let ms = fitText(ctx, main, mainBox.width, iconSize*.28, 18);
-  ctx.font = `800 ${ms}px Arial`; ctx.fillText(main, mainBox.x + mainBox.width/2, mainBox.y + mainBox.height/2);
 }
 
 function drawCroppedImage(ctx, img, x, y, w, h, zoom, fx, fy) {

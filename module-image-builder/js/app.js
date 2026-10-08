@@ -1,52 +1,70 @@
-import { loadImage, readFileAsDataUrl } from './utils.js';
+import { loadImage, readFileAsDataUrl, slugify } from './utils.js';
 import { renderIconModule, renderPhotoModule } from './renderer.js';
+import { drawStylised } from './styles.js';
 
-const canvas = document.getElementById('previewCanvas');
+const $ = id => document.getElementById(id);
+const canvas = $('previewCanvas');
 const ctx = canvas.getContext('2d');
-const moduleGrid = document.getElementById('moduleTypeGrid');
-const colourSwatches = document.getElementById('colourSwatches');
-const photoColourSwatches = document.getElementById('photoColourSwatches');
-const themeSelect = document.getElementById('themeSelect');
-const themeDescription = document.getElementById('themeDescription');
-const iconControls = document.getElementById('iconControls');
-const photoControls = document.getElementById('photoControls');
 
 const state = {
-  mode: 'teaching',
-  colours: [], themes: [], icons: [],
-  colour: { name: 'University blue', hex: '#041E42' },
-  photoColour: { name: 'University blue', hex: '#041E42' },
+  mode: 'standard',               // standard | stylised | photo
+  colours: [], themes: [], icons: [], styles: [],
+  iconImages: {},                 // built-in icon id -> loaded image
+  uploadedImage: null, uploadedName: '',
+
+  // standard
+  standardIcon: 'calendar',
+  colour: null,
   theme: 'aurora',
   iconSize: 68,
+
+  // stylised
+  stylisedIcon: 'upload',
+  stylisedColour: null,
+  style: 'geometric',
+  badgeSize: 42,
+  stylisedIconSize: 58,
+  mirror: false,
+
+  // shared calendar text
   calendarHeader: 'Week',
   calendarMain: '1',
-  iconImage: null,
-  uploadedSvgUrl: null,
-  photoImage: null,
-  photoZoom: 120,
-  photoSaturation: 75,
-  photoX: 50,
-  photoY: 50,
-  borderWidth: 16
+
+  // photo
+  photoImage: null, photoColour: null,
+  photoZoom: 120, photoSaturation: 75, photoX: 50, photoY: 50, borderWidth: 16,
+
+  // file name
+  courseId: '', fileLabel: ''
 };
 
+const ICON_LABELS = { calendar: 'Teaching week / month' };
+
 async function init() {
-  const [colours, icons, themes] = await Promise.all([
-    fetch('data/colours.json').then(r => r.json()),
-    fetch('data/icons.json').then(r => r.json()),
-    fetch('data/themes.json').then(r => r.json())
-  ]);
-  state.colours = colours; state.icons = icons; state.themes = themes;
-  state.colour = colours.find(c => c.name === 'University blue') || colours[0];
-  state.photoColour = state.colour;
-  buildSwatches(colourSwatches, 'colour');
-  buildSwatches(photoColourSwatches, 'photoColour');
+  const [colours, icons, themes, styles] = await Promise.all(
+    ['colours', 'icons', 'themes', 'styles'].map(n => fetch(`data/${n}.json`).then(r => r.json()))
+  );
+  Object.assign(state, { colours, icons, themes, styles });
+  const blue = colours.find(c => c.name === 'University blue') || colours[0];
+  state.colour = blue; state.stylisedColour = blue; state.photoColour = blue;
+
+  await Promise.all(icons.map(async i => { state.iconImages[i.id] = await loadImage(i.file); }));
+
+  try { state.courseId = localStorage.getItem('mib-course-id') || ''; } catch { /* storage unavailable */ }
+  $('courseId').value = state.courseId;
+
+  buildSwatches($('colourSwatches'), 'colour');
+  buildSwatches($('stylisedSwatches'), 'stylisedColour');
+  buildSwatches($('photoColourSwatches'), 'photoColour');
   buildThemes();
-  await setIconForMode('teaching');
+  buildStylePicker();
+  buildIconSelect();
   bindEvents();
   updateVisibility();
   render();
 }
+
+/* ---------- builders ---------- */
 
 function buildSwatches(container, key) {
   container.innerHTML = '';
@@ -56,85 +74,213 @@ function buildSwatches(container, key) {
     btn.style.background = c.hex;
     btn.title = c.name;
     btn.type = 'button';
+    btn.setAttribute('aria-label', c.name);
+    btn.setAttribute('aria-pressed', state[key].hex === c.hex);
     btn.addEventListener('click', () => { state[key] = c; buildSwatches(container, key); render(); });
     container.appendChild(btn);
   });
 }
+
 function buildThemes() {
-  themeSelect.innerHTML = '';
-  state.themes.forEach(t => {
-    const opt = document.createElement('option'); opt.value = t.id; opt.textContent = t.name; themeSelect.appendChild(opt);
-  });
-  themeSelect.value = state.theme;
+  const sel = $('themeSelect');
+  sel.innerHTML = '';
+  state.themes.forEach(t => sel.add(new Option(t.name, t.id)));
+  sel.value = state.theme;
   updateThemeDescription();
 }
 function updateThemeDescription() {
   const t = state.themes.find(x => x.id === state.theme);
-  themeDescription.textContent = t ? t.description : '';
+  $('themeDescription').textContent = t ? t.description : '';
 }
-async function setIconForMode(mode) {
-  let id = { teaching: 'calendar', reading: 'reading-week', assessment: 'assignment', welcome: 'welcome' }[mode];
-  if (!id && mode === 'other' && state.uploadedSvgUrl) { state.iconImage = await loadImage(state.uploadedSvgUrl); return; }
-  if (!id) id = 'calendar';
-  const icon = state.icons.find(i => i.id === id);
-  state.iconImage = await loadImage(icon.file);
+
+function buildIconSelect() {
+  const sel = $('iconSelect');
+  sel.innerHTML = '';
+  if (state.mode === 'stylised') sel.add(new Option('Upload your own SVG', 'upload'));
+  state.icons.forEach(i => sel.add(new Option(ICON_LABELS[i.id] || i.title, i.id)));
+  sel.value = state.mode === 'stylised' ? state.stylisedIcon : state.standardIcon;
 }
+
+function buildStylePicker() {
+  const wrap = $('stylePicker');
+  wrap.innerHTML = '';
+  state.styles.forEach(s => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'style-option' + (s.id === state.style ? ' active' : '');
+    btn.dataset.style = s.id;
+    btn.setAttribute('role', 'radio');
+    btn.setAttribute('aria-checked', s.id === state.style);
+    const c = document.createElement('canvas');
+    c.width = c.height = 220;
+    c.setAttribute('aria-hidden', 'true');
+    const span = document.createElement('span');
+    span.textContent = s.name;
+    btn.append(c, span);
+    btn.addEventListener('click', () => selectStyle(s.id));
+    wrap.appendChild(btn);
+  });
+  updateStyleDescription();
+}
+function selectStyle(id) {
+  state.style = id;
+  const s = state.styles.find(x => x.id === id);
+  if (s && s.badge) { state.badgeSize = s.badge; $('badgeSize').value = s.badge; }
+  document.querySelectorAll('.style-option').forEach(b => {
+    const on = b.dataset.style === id;
+    b.classList.toggle('active', on); b.setAttribute('aria-checked', on);
+  });
+  updateStyleDescription();
+  render();
+}
+function updateStyleDescription() {
+  const s = state.styles.find(x => x.id === state.style);
+  $('styleDescription').textContent = s ? s.description : '';
+}
+
+/* ---------- events ---------- */
+
 function bindEvents() {
-  moduleGrid.addEventListener('click', async e => {
+  $('moduleTypeGrid').addEventListener('click', e => {
     const btn = e.target.closest('.module-card'); if (!btn) return;
-    document.querySelectorAll('.module-card').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    document.querySelectorAll('.module-card').forEach(b => {
+      b.classList.toggle('active', b === btn); b.setAttribute('aria-pressed', b === btn);
+    });
     state.mode = btn.dataset.mode;
-    if (state.mode !== 'photo') await setIconForMode(state.mode);
+    if (state.mode !== 'photo') buildIconSelect();
     updateVisibility(); render();
   });
-  themeSelect.addEventListener('change', () => { state.theme = themeSelect.value; updateThemeDescription(); render(); });
-  ['calendarHeader','calendarMain','iconSize','photoZoom','photoSaturation','photoX','photoY','borderWidth'].forEach(id => {
-    document.getElementById(id).addEventListener('input', e => {
-      const v = e.target.type === 'range' ? Number(e.target.value) : e.target.value;
-      if (id === 'calendarHeader') state.calendarHeader = v;
-      if (id === 'calendarMain') state.calendarMain = v;
-      if (id === 'iconSize') state.iconSize = v;
-      if (id === 'photoZoom') state.photoZoom = v;
-      if (id === 'photoSaturation') state.photoSaturation = v;
-      if (id === 'photoX') state.photoX = v;
-      if (id === 'photoY') state.photoY = v;
-      if (id === 'borderWidth') state.borderWidth = v;
-      render();
-    });
+
+  $('iconSelect').addEventListener('change', e => {
+    if (state.mode === 'stylised') state.stylisedIcon = e.target.value;
+    else state.standardIcon = e.target.value;
+    updateVisibility(); render();
   });
-  document.getElementById('svgUpload').addEventListener('change', async e => {
+
+  $('themeSelect').addEventListener('change', e => { state.theme = e.target.value; updateThemeDescription(); render(); });
+  $('mirrorLayout').addEventListener('change', e => { state.mirror = e.target.checked; render(); });
+
+  const inputs = ['calendarHeader', 'calendarMain', 'iconSize', 'badgeSize', 'stylisedIconSize',
+    'photoZoom', 'photoSaturation', 'photoX', 'photoY', 'borderWidth', 'fileLabel'];
+  inputs.forEach(id => $(id).addEventListener('input', e => {
+    state[id] = e.target.type === 'range' ? Number(e.target.value) : e.target.value;
+    render();
+  }));
+  $('courseId').addEventListener('input', e => {
+    state.courseId = e.target.value;
+    try { localStorage.setItem('mib-course-id', state.courseId); } catch { /* storage unavailable */ }
+    updateFileName();
+  });
+
+  $('svgUpload').addEventListener('change', async e => {
     const file = e.target.files[0]; if (!file) return;
     if (!file.name.toLowerCase().endsWith('.svg')) { alert('Please upload an SVG file.'); e.target.value = ''; return; }
-    state.uploadedSvgUrl = await readFileAsDataUrl(file);
-    state.iconImage = await loadImage(state.uploadedSvgUrl);
-    state.mode = 'other'; render();
+    try {
+      state.uploadedImage = await loadImage(await readFileAsDataUrl(file));
+      state.uploadedName = file.name.replace(/\.svg$/i, '');
+    } catch {
+      alert('That SVG could not be read. Try re-saving it from your design tool.');
+      return;
+    }
+    render();
   });
-  document.getElementById('photoUpload').addEventListener('change', async e => {
+
+  $('photoUpload').addEventListener('change', async e => {
     const file = e.target.files[0]; if (!file) return;
-    state.photoImage = await loadImage(await readFileAsDataUrl(file)); render();
+    state.photoImage = await loadImage(await readFileAsDataUrl(file));
+    state.photoName = file.name.replace(/\.[^.]+$/, '');
+    render();
   });
-  document.getElementById('downloadBtn').addEventListener('click', () => {
+
+  $('downloadBtn').addEventListener('click', () => {
     const a = document.createElement('a');
-    a.download = `module-image-${state.mode}.png`;
+    a.download = fileName();
     a.href = canvas.toDataURL('image/png');
     a.click();
   });
 }
+
 function updateVisibility() {
   const isPhoto = state.mode === 'photo';
-  iconControls.classList.toggle('hidden', isPhoto);
-  photoControls.classList.toggle('hidden', !isPhoto);
-  document.querySelectorAll('.calendar-only').forEach(el => el.classList.toggle('hidden', state.mode !== 'teaching'));
-  document.querySelectorAll('.other-only').forEach(el => el.classList.toggle('hidden', state.mode !== 'other'));
+  const icon = currentIconId();
+  $('iconControls').classList.toggle('hidden', isPhoto);
+  $('photoControls').classList.toggle('hidden', !isPhoto);
+  $('standardControls').classList.toggle('hidden', state.mode !== 'standard');
+  $('stylisedControls').classList.toggle('hidden', state.mode !== 'stylised');
+  document.querySelectorAll('.calendar-only').forEach(el => el.classList.toggle('hidden', isPhoto || icon !== 'calendar'));
+  document.querySelectorAll('.upload-only').forEach(el => el.classList.toggle('hidden', isPhoto || icon !== 'upload'));
 }
+
+/* ---------- rendering ---------- */
+
+function currentIconId() {
+  return state.mode === 'stylised' ? state.stylisedIcon : state.standardIcon;
+}
+function currentIconImage() {
+  const id = currentIconId();
+  return id === 'upload' ? state.uploadedImage : state.iconImages[id];
+}
+
+function stylisedOpts(style) {
+  const id = currentIconId();
+  return {
+    style,
+    colour: state.stylisedColour,
+    badge: style === state.style ? state.badgeSize : (state.styles.find(s => s.id === style)?.badge || 42),
+    iconScale: state.stylisedIconSize,
+    mirror: state.mirror,
+    iconImage: currentIconImage(),
+    calendar: id === 'calendar' ? { header: state.calendarHeader, main: state.calendarMain } : null
+  };
+}
+
 function render() {
   if (state.mode === 'photo') renderPhotoModule(ctx, state);
-  else renderIconModule(ctx, state);
+  else if (state.mode === 'stylised') {
+    drawStylised(ctx, stylisedOpts(state.style));
+    renderStyleThumbs();
+  } else {
+    renderIconModule(ctx, { ...state, iconId: state.standardIcon, iconImage: currentIconImage() });
+  }
+  updateFileName();
+}
+
+function renderStyleThumbs() {
+  document.querySelectorAll('.style-option').forEach(btn => {
+    const c = btn.querySelector('canvas');
+    drawStylised(c.getContext('2d'), stylisedOpts(btn.dataset.style));
+  });
+}
+
+/* ---------- file name ---------- */
+
+function autoLabel() {
+  if (state.mode === 'photo') return state.photoName || 'photo';
+  const id = currentIconId();
+  if (id === 'calendar') return `${state.calendarHeader || 'Week'} ${state.calendarMain || '1'}`;
+  if (id === 'upload') return state.uploadedName || 'icon';
+  return id;
+}
+function styleTag() {
+  if (state.mode === 'standard') return state.theme;
+  if (state.mode === 'stylised') return state.styles.find(s => s.id === state.style)?.short || state.style;
+  return '';
+}
+function fileName() {
+  const parts = [
+    slugify(state.courseId) || 'module-image',
+    slugify(state.fileLabel || autoLabel()).toLowerCase(),
+    styleTag()
+  ].filter(Boolean);
+  return parts.join('_') + '.png';
+}
+function updateFileName() {
+  $('fileLabel').placeholder = slugify(autoLabel()).toLowerCase() || 'label';
+  $('fileNamePreview').textContent = fileName();
 }
 
 init().catch(err => {
   console.error(err);
   ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#D50032'; ctx.font = '700 18px Arial'; ctx.fillText('App failed to load. Check file paths.', 40, 250);
+  ctx.fillStyle = '#D50032'; ctx.font = '700 28px Arial'; ctx.fillText('App failed to load. Check file paths.', 60, 400);
 });

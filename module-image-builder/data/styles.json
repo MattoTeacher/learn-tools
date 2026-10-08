@@ -1,0 +1,30 @@
+[
+  {
+    "id": "geometric",
+    "name": "Layered Geometric",
+    "short": "geometric",
+    "description": "Confident colour field with layered circles and a fine diagonal line. The icon sits on a white disc. A good default for most modules.",
+    "badge": 42
+  },
+  {
+    "id": "editorial",
+    "name": "Editorial Minimalist",
+    "short": "editorial",
+    "description": "Calm neutral surfaces, an offset side panel and a coloured disc. Good for orientation, information or support sections.",
+    "badge": 44
+  },
+  {
+    "id": "gradient",
+    "name": "Soft Gradient",
+    "short": "gradient",
+    "description": "A smooth blend between two related university colours with translucent circles. Friendlier, good for community or engagement content.",
+    "badge": 48
+  },
+  {
+    "id": "structured",
+    "name": "Structured Graphic",
+    "short": "structured",
+    "description": "A bold colour band, fine diagonals and a framed inset panel. Distinctive and slightly more formal.",
+    "badge": 35
+  }
+]
