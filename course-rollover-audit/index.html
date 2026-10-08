@@ -623,7 +623,10 @@ const BBConvert = (() => {
           if (!box) { a.remove(); continue; }
           const host = a.closest('h1,h2,h3,h4,h5,h6,p');
           const frag = doc.createDocumentFragment();
-          while (box.firstChild) frag.appendChild(box.firstChild);
+          // in analyse mode, mark HTML block content so the checks can treat it differently
+          const target = analyse ? frag.appendChild(Object.assign(doc.createElement('div'), { className: 'bb-htmlblock' })) : frag;
+          if (analyse) target.setAttribute('data-htmlblock', '1');
+          while (box.firstChild) target.appendChild(box.firstChild);
           if (host) { host.after(frag); a.remove(); } else a.replaceWith(frag);
           continue;
         }
@@ -908,6 +911,25 @@ const BBCheck = (() => {
     return out;
   }
 
+  /* Practical dates are the ones a course rollover changes: deadlines, sessions, timetables.
+     Narrative dates in the teaching material ("In November 2022, the strategy launched...") are left alone. */
+  const STRONG_DATE = new RegExp(`\\b(?:${DAYS}|Mon|Tue|Tues|Wed|Thu|Thur|Thurs|Fri|Sat|Sun)\\b|\\d\\s*(?:am|pm|a\\.m\\.|p\\.m\\.)|\\b\\d{1,2}:\\d{2}\\b|\\b(?:noon|midday|midnight)\\b|\\b\\d{1,2}[\\/.]\\d{1,2}[\\/.]\\d{2,4}\\b|\\b20\\d{2}-\\d{2}-\\d{2}\\b|\\bsemester\\b|\\b(?:20)?\\d{2}\\s*[\\/\\-–]\\s*\\d{2}\\b`, 'i');
+  const DAY_MONTH = /\d{1,2}(?:st|nd|rd|th)?\s+(?:of\s+)?[A-Za-z]|[A-Za-z]\.?\s+\d{1,2}(?:st|nd|rd|th)?(?!\d)/;
+  const HAS_YEAR = /\b(?:19|20)\d{2}\b/;
+  const PRACTICAL = /\b(?:due|deadlines?|submit(?:ted|ting)?|submissions?|hand(?:ed)? in|live sessions?|sessions?|lectures?|seminars?|tutorials?|workshops?|webinars?|drop-ins?|office hours|meetings?|classes|opens?|closes?|closing date|available (?:from|until|on|by)|released?|assessments?|exams?|examinations?|assignments?|projects?|essays?|reports? (?:due|deadline)|marks?|grades?|results|register|registration|booking|book (?:a|your|by|onto)|timetable|schedule|key dates|important dates|reading week|teaching week|induction|orientation|extensions?|resubmissions?)\b/i;
+  function practicalDates(text, context = '') {
+    return findDates(text).filter(([a, b]) => {
+      const d = text.slice(a, b);
+      if (STRONG_DATE.test(d)) return true;
+      if (DAY_MONTH.test(d) && !HAS_YEAR.test(d)) return true;
+      // month on its own, month and year, or a full date with a year: only in a practical setting
+      const start = Math.max(text.lastIndexOf('. ', a), text.lastIndexOf('! ', a), text.lastIndexOf('? ', a));
+      const ends = ['. ', '! ', '? '].map(x => text.indexOf(x, b)).filter(i => i > -1);
+      const sentence = text.slice(start < 0 ? 0 : start, ends.length ? Math.min(...ends) + 1 : text.length);
+      return PRACTICAL.test(sentence) || PRACTICAL.test(context);
+    });
+  }
+
   // text with ranges wrapped in <mark>, trimmed to a readable window
   function snippet(text, ranges, max = 240) {
     text = text.replace(/\s+/g, ' ');
@@ -988,23 +1010,37 @@ const BBCheck = (() => {
     return '';
   };
 
-  /* ---------- University template pages ----------
-     Pages the University course template provides, with the same content in every course.
+  /* ---------- University template items ----------
+     Folders and pages the University course template provides, the same in every course.
      They are left out of the audit unless "Include University template pages" is ticked.
-     Matched on the page's own title, ignoring case, punctuation and emoji. Add or remove titles here. */
-  const TEMPLATE_PAGES = [
-    'Read Me First - Guidance for Staff',
-    'Read Me First - Variables and Placeholders',
-    'Emoticons',
-    'Help and Support',
-    'Library Resources (Online)',
-    'University systems and IT support',
-    'University of Edinburgh Feedback',
-    'Have your say - University of Edinburgh Feedback',
+     Titles are matched ignoring case, punctuation, emoji and "(hidden)", and also match a longer title
+     that contains them (so "Have your say - University of Edinburgh Feedback" matches too).
+     withContents: true  = leave out the item and everything inside it (folders)
+     withContents: false = leave out only the item itself; anything inside it is still audited */
+  const TEMPLATE_ITEMS = [
+    { title: 'Staff Guidance and Resources', withContents: true },
+    { title: 'Staff Resources and Guidance', withContents: true },
+    { title: 'Read Me First - Guidance for Staff', withContents: true },        // older template, in "Staff Folder"
+    { title: 'Read Me First - Variables and Placeholders', withContents: true }, // older template, in "Staff Folder"
+    { title: 'Your Courses in Learn - Guidance for Students', withContents: true },
+    { title: 'Add Course Materials Below', withContents: false },
+    { title: 'Library Resources (Campus Based)', withContents: true },
+    { title: 'Library Resources (Online)', withContents: true },
+    { title: 'Help and Support', withContents: true },
+    { title: 'University of Edinburgh Feedback', withContents: true },
   ];
-  const normTitle = t => String(t).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-  const TEMPLATE_SET = new Set(TEMPLATE_PAGES.map(normTitle));
-  const isTemplatePage = page => TEMPLATE_SET.has(normTitle(page.loc[page.loc.length - 1]));
+  const normTitle = t => String(t).toLowerCase().replace(/&/g, ' and ').replace(/\(hidden\)/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+  const TEMPLATE_NORM = TEMPLATE_ITEMS.map(t => Object.assign({ norm: normTitle(t.title) }, t));
+  const templateMatch = title => { const n = ' ' + normTitle(title) + ' '; return TEMPLATE_NORM.find(t => n.includes(' ' + t.norm + ' ')); };
+  // index of the loc entry that makes this page template content, or -1
+  const templateIndex = page => {
+    for (let i = 0; i < page.loc.length; i++) {
+      const m = templateMatch(page.loc[i]);
+      if (m && (m.withContents || i === page.loc.length - 1)) return i;
+    }
+    return -1;
+  };
+  const isTemplatePage = page => templateIndex(page) > -1;
 
   /* ---------- readings ---------- */
   // wording that says a reading is assigned
@@ -1066,6 +1102,11 @@ const BBCheck = (() => {
 
   /* ---------- unfilled template text ---------- */
   const PLACEHOLDER = /\[(?=[^\]]*[A-Za-z]{2})[^\[\]\n]{2,80}\]|\bX{3,}\b|\bTB[CAD]\b|\b(?:insert|add) (?:link|date|name|details|text) here\b/g;
+  // bracketed reference details ([accessed 1 September 2024], [online], [video]) are not placeholders
+  const REF_BRACKET = /^\[\s*(?:accessed|viewed|retrieved|cited|downloaded|online|internet|video|audio|podcast|blog|e-?book|kindle|report|pdf|image|photograph|webpage|web page|website|tweet|computer program|software|dataset|data set|lecture|presentation|slides|film|tv|television|radio|map|press release|editorial|letter|abstract|preprint|unpublished|in press|translated|trans\.?|eds?\.?|no date|n\.d\.?)\b/i;
+  // code, not words: [i], [0], [data-id], [aria-expanded="true"], items[index + 1]
+  const CODE_BRACKET = m => /[=;{}()<>$"'`|&\+*]|=>/.test(m) || (/^\[[^\s\]]+\]$/.test(m) && (/^\[[a-z_$]/.test(m) || /[.\-_$#:]/.test(m)));
+  const isPlaceholder = m => !notPlaceholder(m) && !(m[0] === '[' && (REF_BRACKET.test(m) || CODE_BRACKET(m)));
   const notPlaceholder = m => /^\[(?:\s*\d+(?:\s*[-–,]\s*\d+)*\s*|sic|\.\.\.|…|pdf|PDF[^\]]*|opens? in (?:a )?new (?:window|tab)|[A-Z][A-Za-z'-]+(?: et al\.?| and [A-Z][A-Za-z'-]+)?,? \d{4}[a-z]?(?:,? p+\. ?\d+)?)\]$/i.test(m);
 
   // a usable host name, or '' if the address can't work
@@ -1080,14 +1121,16 @@ const BBCheck = (() => {
     const includeTemplate = !!opts.includeTemplate;
     const CAT = {
       dates: { name: 'Dates and times', why: 'Every date, day and time in the course will need checking for the new session.', rules: [
-        'Flags days of the week, dates (14 October, 14/10/2026, Mon 14th Oct), months, clock times (2pm, 14:00, noon, midday), "Semester 1" and academic years (2024-25, 24/25).',
+        'Always flags days of the week, clock times (2pm, 14:00, noon, midday), numeric dates (14/10/2026), "Semester 1", academic years (2024-25, 24/25), and a day and month with no year (14 October).',
+        'Flags a month on its own, a month and year (November 2022) or a full date with a year (3 March 2020) only when the sentence, heading or page is about something practical: a deadline, submission, live session, lecture, seminar, assessment, timetable and similar. This leaves out dates the teaching material talks about, like "In November 2022, the strategy launched".',
         'Checks folder and item titles as well as page text.',
-        'Ignores years on their own, publication dates in references and citations (anything with et al., a DOI, a journal name or a year in brackets), video durations like (02:06), and anything inside a web address.',
+        'Leaves out dates in video titles (they are noted in the Videos list instead), years on their own, dates in references and citations (et al., a DOI, a journal name, a year in brackets, "accessed"), video durations like (02:06), anything inside a web address, and code in HTML blocks.',
       ], issues: [] },
       placeholders: { name: 'Unfilled template text', why: 'Placeholder text from the course template, or notes left for later, that should be replaced before students see the course.', rules: [
         'Flags text in square brackets, like [Link to survey] or [Course name / ID / Session].',
         'Also flags XXX, TBC, TBA and TBD, and "insert link here" style notes.',
-        'Ignores citation brackets like [1], [Smith, 2020], [sic] and [PDF].',
+        'Ignores citation brackets like [1], [Smith, 2020], [sic] and [PDF], and reference details like [accessed 1 September 2024], [online] or [video].',
+        'Ignores code in HTML blocks, such as [i], [0] or [aria-expanded="true"].',
       ], issues: [] },
       broken: { name: 'Broken links', why: "Links that can't work as they are, whatever course they're in. Fix these in the current course too.", rules: [
         'Flags links whose web address is not valid, for example "http://Week 4".',
@@ -1111,6 +1154,7 @@ const BBCheck = (() => {
       videos: { name: 'Videos', why: 'Every video in the course, with where it sits, so you can check each one still plays and has captions or a transcript.', rules: [
         'Lists embedded and linked videos from Media Hopper, YouTube, Vimeo, TED and Panopto, Collaborate recordings, and video or audio files attached to the course.',
         'Looks for a transcript on the same page: an attached file or link mentioning a transcript, captions or subtitles, or a .vtt or .srt file.',
+        'Notes any date or year in a video title, which often means a recording from a previous run.',
         "It can't see whether captions are switched on in Media Hopper or YouTube, so those need checking by hand.",
       ], issues: [] },
       external: { name: 'External links to check', why: "This tool can't test other websites from the browser, so each link is listed once with every place it appears. Open each one and check it still works and is still the right page.", rules: [
@@ -1127,7 +1171,7 @@ const BBCheck = (() => {
     };
 
     const pages = res.pages.filter(p => includeTemplate || !isTemplatePage(p));
-    const excludedTemplate = [...new Set(res.pages.filter(p => !includeTemplate && isTemplatePage(p)).map(p => p.loc.join(' › ')))];
+    const excludedTemplate = [...new Set(res.pages.filter(p => !includeTemplate && isTemplatePage(p)).map(p => p.loc.slice(0, templateIndex(p) + 1).join(' › ')))];
     const externalMap = new Map();
     const seenFiles = new Set();
     const seenTitles = new Set();
@@ -1136,7 +1180,7 @@ const BBCheck = (() => {
       const ranges = [];
       PLACEHOLDER.lastIndex = 0;
       let m;
-      while ((m = PLACEHOLDER.exec(text))) if (!notPlaceholder(m[0])) ranges.push([m.index, m.index + m[0].length]);
+      while ((m = PLACEHOLDER.exec(text))) if (isPlaceholder(m[0])) ranges.push([m.index, m.index + m[0].length]);
       if (ranges.length) CAT.placeholders.issues.push({ loc, heading, snippet: snippet(text, ranges), fix });
     };
 
@@ -1149,7 +1193,7 @@ const BBCheck = (() => {
         if (seenTitles.has(key)) return;
         seenTitles.add(key);
         const where = page.loc.slice(0, i).join(' › ') || '(top level of the course)';
-        const r = findDates(t);
+        const r = practicalDates(t, page.loc.slice(0, i).join(' '));
         if (r.length && !looksLikeReference(t)) CAT.dates.issues.push({ loc: where, heading: '', snippet: snippet(t, r), fix: `Update the ${i === 0 ? 'folder' : 'item'} title for the new session.` });
         pushPlaceholders(t, where, '', `Replace the placeholder in the ${i === 0 ? 'folder' : 'item'} title.`);
       });
@@ -1180,6 +1224,11 @@ const BBCheck = (() => {
         || page.files.find(f => TRANSCRIPT.test(f.name));
       const transcriptName = !transcriptEl ? '' : transcriptEl.nodeType ? (transcriptEl.getAttribute('data-name') || (t => t.length > 90 ? t.slice(0, 90).replace(/\s+\S*$/, '') + '…' : t)(transcriptEl.textContent.replace(/\s+/g, ' ').trim())) : transcriptEl.name;
       const videoSeen = new Set();
+      // video titles on this page, so their dates are reported in the videos list, not under dates
+      const videoTitles = new Set();
+      const noDur = t => normTitle(String(t).replace(/\(\s*\d{1,2}:\d{2}(?::\d{2})?\s*\)/g, ''));
+      const isVideoLink = a => a.dataset.kind === 'video' || !!videoPlatform(a.getAttribute('href') || '');
+      for (const a of body.querySelectorAll('a[href]')) if (isVideoLink(a)) { const t = noDur(a.textContent); if (t) videoTitles.add(t); }
       const addVideo = (title, url, platform, heading, fileName) => {
         if (heading && normTitle(heading) === normTitle(page.loc[page.loc.length - 1])) heading = '';
         const key = url ? videoKey(url) : fileName;
@@ -1189,11 +1238,17 @@ const BBCheck = (() => {
         if (heading && title && normTitle(heading) === normTitle(title)) heading = '';
         const dur = durationOf(title);
         const label = title || fileName || url;
-        CAT.videos.issues.push({ loc: locText, heading,
-          snippet: `<mark>${esc(label)}</mark><br>${esc(platform)}${dur && !label.includes(dur) ? `, ${esc(dur)}` : ''}`, url: url || '',
-          fix: platform === 'Collaborate recording'
+        // dates in the title: any date, or a year on its own (an old recording)
+        const masked = label.replace(/\(\s*\d{1,2}:\d{2}(?::\d{2})?\s*\)/g, m => ' '.repeat(m.length));
+        const dr = findDates(masked);
+        for (const m of masked.matchAll(/\b(?:19|20)\d{2}\b/g)) if (!dr.some(([x, y]) => m.index >= x && m.index < y)) dr.push([m.index, m.index + 4]);
+        dr.sort((x, y) => x[0] - y[0]);
+        const dateNote = dr.length ? `The title includes a date (${dr.map(([x, y]) => label.slice(x, y)).join(', ')}): check it's still the right recording for the new session. ` : '';
+        CAT.videos.issues.push({ loc: locText, heading, dated: !!dr.length,
+          snippet: `${dr.length ? snippet(label, dr, 400) : `<mark>${esc(label)}</mark>`}<br>${esc(platform)}${dur && !label.includes(dur) ? `, ${esc(dur)}` : ''}`, url: url || '',
+          fix: dateNote + (platform === 'Collaborate recording'
             ? "A recording from a previous run (also listed under Live session links). Replace or remove it for the new session."
-            : transcriptName ? `Check it still plays and has captions. Transcript found on this page: ${esc(transcriptName)}.` : 'Check it still plays and has accurate captions. No transcript was found on this page; add one if the video carries content students need.' });
+            : transcriptName ? `Check it still plays and has captions. Transcript found on this page: ${esc(transcriptName)}.` : 'Check it still plays and has accurate captions. No transcript was found on this page; add one if the video carries content students need.') });
       };
 
       // readings: collect candidates before the notes are removed
@@ -1244,23 +1299,32 @@ const BBCheck = (() => {
       // text blocks: dates and placeholders
       const BLOCKS = 'h1,h2,h3,h4,h5,h6,p,li,td,th,dt,dd,pre,figcaption,caption,blockquote,div';
       const CONTAINERS = new Set(['UL', 'OL', 'TABLE', 'TBODY', 'THEAD', 'TR', 'P', 'DIV', 'BLOCKQUOTE', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6', 'PRE', 'DL', 'FIGURE', 'SECTION']);
-      const ownText = el => {
-        let t = '';
+      // a block's own text, and the same text with video titles blanked out (same length)
+      const ownTexts = el => {
+        let t = '', m = '';
         for (const c of el.childNodes) {
-          if (c.nodeType === 3) t += c.nodeValue;
-          else if (c.nodeType === 1 && !CONTAINERS.has(c.tagName) && c.tagName !== 'LI') t += c.tagName === 'BR' ? ' ' : c.textContent;
+          if (c.nodeType === 3) { const v = c.nodeValue.replace(/\s+/g, ' '); t += v; m += v; }
+          else if (c.nodeType === 1 && !CONTAINERS.has(c.tagName) && c.tagName !== 'LI') {
+            const v = c.tagName === 'BR' ? ' ' : c.textContent.replace(/\s+/g, ' ');
+            const vid = (c.tagName === 'A' && isVideoLink(c)) || (c.querySelector && [...c.querySelectorAll('a[href]')].some(isVideoLink));
+            t += v; m += vid ? ' '.repeat(v.length) : v;
+          }
         }
-        return t.replace(/\s+/g, ' ').trim();
+        const lead = t.length - t.trimStart().length;
+        return { t: t.trim(), m: m.slice(lead, lead + t.trim().length) };
       };
+      const looksLikeCode = (el, t) => !!el.closest('pre,code,script,style') || (!!el.closest('[data-htmlblock]') && /[{};]\s*$|function\s*\(|=>|\b(?:var|const|let)\s+\w+\s*=|\.addEventListener|document\.|\$\(/.test(t));
       let heading = '', inRefs = false;
+      const pageCtx = page.loc.slice(-2).join(' ') + ' ' + page.loc[0];
       for (const el of body.querySelectorAll(BLOCKS)) {
-        const t = ownText(el);
+        const { t, m } = ownTexts(el);
         if (/^H[1-6]$/.test(el.tagName)) { heading = t; inRefs = /\b(?:references|bibliography|further reading|reading list|readings)\b/i.test(t); }
-        if (!t) continue;
+        if (!t || looksLikeCode(el, t)) continue;
         const hd = /^H[1-6]$/.test(el.tagName) ? '' : heading;
         pushPlaceholders(t, locText, hd, 'Replace the placeholder with the real details, or remove it.');
         if (looksLikeReference(t) || (inRefs && el.tagName === 'LI')) continue;
-        const ranges = findDates(t);
+        if (videoTitles.has(noDur(t)) || el.querySelector(':scope > a[data-kind="video"]')) continue; // a video title: see the videos list
+        const ranges = practicalDates(m, hd + ' ' + pageCtx);
         if (ranges.length) CAT.dates.issues.push({ loc: locText, heading: hd, snippet: snippet(t, ranges), fix: /\b20\d{2}\s*[\/\-–]|\b\d{2}\/\d{2}\b/.test(t) ? 'Update dates, days and the academic year for the new session.' : 'Update for the new session.' });
       }
 
@@ -1375,7 +1439,7 @@ const BBCheck = (() => {
     return cats;
   }
 
-  return { run, findDates, fileNameProblems, classifyLink, looksLikeReference, TEMPLATE_PAGES, isTemplatePage };
+  return { run, findDates, practicalDates, fileNameProblems, classifyLink, looksLikeReference, TEMPLATE_ITEMS, isTemplatePage, isPlaceholder };
 })();
 
 
