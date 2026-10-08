@@ -223,7 +223,7 @@ mark { background: var(--mark); color: var(--mark-ink); padding: 0 .12em; border
       <p id="progText" role="status" aria-live="polite"></p>
     </div>
     <div id="err1"></div>
-    <label class="check"><input type="checkbox" id="template"> <span>Include University template pages, such as Help and Support and the Read Me First pages. These are the same in every course, so they are left out by default.</span></label>
+    <label class="check"><input type="checkbox" id="template"> <span>Include University template pages, such as Help and Support and Library Resources. These are the same in every course, so they are left out by default. Staff folders are always left out.</span></label>
     <details>
       <summary>How do I export a course from Learn?</summary>
       <div>
@@ -1018,8 +1018,6 @@ const BBCheck = (() => {
      withContents: true  = leave out the item and everything inside it (folders)
      withContents: false = leave out only the item itself; anything inside it is still audited */
   const TEMPLATE_ITEMS = [
-    { title: 'Staff Guidance and Resources', withContents: true },
-    { title: 'Staff Resources and Guidance', withContents: true },
     { title: 'Read Me First - Guidance for Staff', withContents: true },        // older template, in "Staff Folder"
     { title: 'Read Me First - Variables and Placeholders', withContents: true }, // older template, in "Staff Folder"
     { title: 'Your Courses in Learn - Guidance for Students', withContents: true },
@@ -1041,6 +1039,21 @@ const BBCheck = (() => {
     return -1;
   };
   const isTemplatePage = page => templateIndex(page) > -1;
+
+  /* ---------- staff folders ----------
+     Always left out, with everything inside them: "Staff Folder (keep hidden)", "Staff Guidance and Resources",
+     "Staff only" and so on. A folder counts when "staff" is in the name of a top-level section or of any folder
+     (not a single page). Student-facing names like "Meet the staff" or "Staff contacts" are not staff folders. */
+  const STUDENT_FACING_STAFF = /\b(?:meet (?:the|our|your) (?:\w+ )?staff|staff (?:contacts?|profiles?|directory|list|biographies|bios)|(?:teaching|course|programme|our|academic|support) staff)\b/;
+  const staffIndex = page => {
+    for (let i = 0; i < page.loc.length; i++) {
+      const n = normTitle(page.loc[i]);
+      const isFolder = i === 0 || i < page.loc.length - 1;
+      if (isFolder && /\bstaff\b/.test(n) && !STUDENT_FACING_STAFF.test(n)) return i;
+    }
+    return -1;
+  };
+  const isStaffPage = page => staffIndex(page) > -1;
 
   /* ---------- readings ---------- */
   // wording that says a reading is assigned
@@ -1170,8 +1183,9 @@ const BBCheck = (() => {
       ], issues: [] },
     };
 
-    const pages = res.pages.filter(p => includeTemplate || !isTemplatePage(p));
-    const excludedTemplate = [...new Set(res.pages.filter(p => !includeTemplate && isTemplatePage(p)).map(p => p.loc.slice(0, templateIndex(p) + 1).join(' › ')))];
+    const pages = res.pages.filter(p => !isStaffPage(p) && (includeTemplate || !isTemplatePage(p)));
+    const excludedStaff = [...new Set(res.pages.filter(isStaffPage).map(p => p.loc.slice(0, staffIndex(p) + 1).join(' › ')))];
+    const excludedTemplate = [...new Set(res.pages.filter(p => !isStaffPage(p) && !includeTemplate && isTemplatePage(p)).map(p => p.loc.slice(0, templateIndex(p) + 1).join(' › ')))];
     const externalMap = new Map();
     const seenFiles = new Set();
     const seenTitles = new Set();
@@ -1436,10 +1450,11 @@ const BBCheck = (() => {
     const order = ['dates', 'placeholders', 'broken', 'rollover', 'live', 'readings', 'videos', 'external', 'files'];
     const cats = order.map(id => Object.assign({ id }, CAT[id]));
     cats.excludedTemplate = excludedTemplate;
+    cats.excludedStaff = excludedStaff;
     return cats;
   }
 
-  return { run, findDates, practicalDates, fileNameProblems, classifyLink, looksLikeReference, TEMPLATE_ITEMS, isTemplatePage, isPlaceholder };
+  return { run, findDates, practicalDates, fileNameProblems, classifyLink, looksLikeReference, TEMPLATE_ITEMS, isTemplatePage, isStaffPage, isPlaceholder };
 })();
 
 
@@ -1516,12 +1531,14 @@ const BBCheck = (() => {
     const total = cats.reduce((a, c) => a + c.issues.length, 0);
     const bits = [`${plural(r.sectionTitles.length, 'section')} checked`, `${plural(total, 'thing')} to look at`];
     if (r.hiddenCount) bits.push(`includes ${plural(r.hiddenCount, 'item')} hidden from students`);
-    const left = cats.excludedTemplate || [];
-    if (left.length) bits.push(`${plural(left.length, 'University template page')} left out`);
+    const left = cats.excludedTemplate || [], staff = cats.excludedStaff || [];
+    if (staff.length) bits.push(`${plural(staff.length, 'staff folder')} left out`);
+    if (left.length) bits.push(`${plural(left.length, 'University template item')} left out`);
     $('courseMeta').textContent = bits.join('; ') + '.';
-    $('templateList').innerHTML = left.length
-      ? `<details><summary>Template pages left out of this audit</summary><div><ul>${left.map(t => `<li>${esc(t)}</li>`).join('')}</ul><p class="hint">Tick "Include University template pages" in step 1 to audit them too.</p></div></details>`
-      : '';
+    const lists = [];
+    if (staff.length) lists.push(`<p><strong>Staff folders</strong>, always left out with everything inside them:</p><ul>${staff.map(t => `<li>${esc(t)}</li>`).join('')}</ul>`);
+    if (left.length) lists.push(`<p><strong>University template items</strong>, left out unless you tick "Include University template pages" in step 1:</p><ul>${left.map(t => `<li>${esc(t)}</li>`).join('')}</ul>`);
+    $('templateList').innerHTML = lists.length ? `<details><summary>What was left out of this audit</summary><div>${lists.join('')}</div></details>` : '';
     $('summary').innerHTML = cats.map(c => `<li><a href="#cat-${c.id}" class="${c.issues.length ? '' : 'zero'}" data-cat="${c.id}"><span>${esc(c.name)}</span><span class="num">${c.issues.length}</span></a></li>`).join('');
     $('report').innerHTML = cats.map(c => {
       const open = c.issues.length && c.issues.length <= 25 ? ' open' : '';
@@ -1549,9 +1566,10 @@ const BBCheck = (() => {
   function checklistHtml() {
     const r = result;
     const total = cats.reduce((a, c) => a + c.issues.length, 0);
-    const left = cats.excludedTemplate || [];
+    const left = cats.excludedTemplate || [], staff = cats.excludedStaff || [];
     let h = `<p>Audited on ${esc(today())} from an export of <em>${esc(r.title)}</em>. ${plural(total, 'item')} to look at.</p>
-${left.length ? `<p>University template pages left out of this audit: ${left.map(esc).join('; ')}.</p>` : '<p>University template pages are included in this audit.</p>'}
+${staff.length ? `<p>Staff folders left out of this audit: ${staff.map(esc).join('; ')}.</p>` : ''}
+${left.length ? `<p>University template items left out of this audit: ${left.map(esc).join('; ')}.</p>` : '<p>University template items are included in this audit.</p>'}
 <p>Work through each table and tick Done as you update the new course on Learn. The Where column shows the folder and page, and the highlighted text shows exactly what was found.</p>
 <h1>Summary</h1><ul>${cats.map(c => `<li>${esc(c.name)}: ${c.issues.length}</li>`).join('')}</ul>`;
     for (const c of cats) {
