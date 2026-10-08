@@ -17,15 +17,16 @@ body {
   background: radial-gradient(circle at 15% 0%, #fff 0, #fff 26%, var(--bg) 68%);
 }
 button, input, select { font: inherit; }
-.app-shell { max-width: 1220px; margin: 0 auto; padding: 28px; }
-.app-header { margin-bottom: 22px; }
+.app-shell { max-width: 1220px; margin: 0 auto; padding: 20px 24px 28px; }
+.app-header { margin-bottom: 16px; }
 .eyebrow { margin: 0 0 8px; color: var(--accent); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; font-size: .78rem; }
-h1 { margin: 0 0 8px; font-size: clamp(2rem, 4vw, 3rem); line-height: 1; }
+h1 { margin: 0 0 6px; font-size: clamp(1.6rem, 3vw, 2.4rem); line-height: 1.05; }
 h2 { margin: 0 0 16px; font-size: 1.1rem; }
 p { color: var(--muted); margin: 0; line-height: 1.5; }
-.layout { display: grid; grid-template-columns: 1fr 1fr 520px; gap: 18px; align-items: start; }
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 18px; align-items: start; }
+.left-column { display: grid; gap: 18px; min-width: 0; }
 .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 24px; padding: 20px; box-shadow: var(--shadow); }
-.module-grid { display: grid; gap: 10px; }
+.module-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .module-card { text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 16px; padding: 14px 15px; cursor: pointer; transition: transform .15s ease, border-color .15s ease, background .15s ease; }
 .module-card:hover { transform: translateY(-1px); border-color: #b6c5d1; }
 .module-card.active { border-color: var(--accent); background: #fbf4fa; box-shadow: inset 4px 0 0 var(--accent); }
@@ -50,7 +51,24 @@ input[type="range"] { width: 100%; accent-color: var(--accent); }
 canvas { display: block; width: 100%; height: auto; border-radius: 14px; background: #eee; }
 .download-button { width: 100%; margin-top: 16px; border: none; border-radius: 14px; background: var(--accent); color: white; padding: 14px 18px; font-weight: 700; cursor: pointer; }
 .download-button:hover { filter: brightness(.94); }
-@media (max-width: 1040px) { .layout { grid-template-columns: 1fr; } .preview-panel { position: static; } }
+/* Customise panel: put the controls in two columns when there is room */
+@media (min-width: 1100px) {
+  #iconControls, #photoControls { grid-template-columns: 1fr 1fr; column-gap: 22px; align-items: start; }
+  #iconControls > .field, #iconControls > .two-col { grid-column: 1 / -1; }
+  #standardControls, #stylisedControls { grid-column: 1 / -1; grid-template-columns: 1fr 1fr; column-gap: 22px; align-items: start; }
+  #stylisedControls > .field:first-child { grid-row: span 4; }
+  #photoControls > .field:first-child { grid-column: 1 / -1; }
+}
+.preview-panel { max-height: calc(100vh - 36px); overflow-y: auto; }
+.canvas-wrap { max-width: 300px; margin: 0 auto; }
+.preview-panel h2 { margin-bottom: 12px; }
+.preview-panel .save-box { margin-top: 12px; }
+.preview-panel .download-button { margin-top: 12px; }
+@media (max-width: 820px) {
+  .layout { grid-template-columns: 1fr; }
+  .module-grid { grid-template-columns: 1fr; }
+  .preview-panel { position: static; max-height: none; }
+}
 
 /* --- v3 additions --- */
 .tag { font-style: normal; font-size: .68rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; background: var(--accent); color: #fff; border-radius: 999px; padding: 2px 7px; margin-left: 6px; vertical-align: 2px; }
