@@ -195,6 +195,9 @@ mark { background: var(--mark); color: var(--mark-ink); padding: 0 .12em; border
 .course-meta { color: var(--muted); margin: 0 0 .6rem; }
 #templateList { margin: 0 0 1.2rem; }
 #templateList details { margin: 0; }
+.help { border-left: 4px solid var(--green); background: var(--wash); padding: .6rem .9rem; margin: 0 0 1rem; border-radius: 0 4px 4px 0; max-width: 40rem; }
+.help p { margin: 0 0 .5rem; } .help p:last-child { margin: 0; }
+.help ul { margin: 0 0 .5rem; padding-left: 1.2rem; } .help li { margin: 0 0 .3rem; }
 .rules { margin: -.4rem 0 1rem; font-size: .95rem; }
 .rules ul { margin: 0; padding-left: 1.1rem; }
 .rules li { margin: 0 0 .3rem; }
@@ -982,7 +985,7 @@ const BBCheck = (() => {
     const probs = [];
     const ay = stem.match(/(?:^|[^\d])(\d{2})\s*[-_\/–]\s*(\d{2})(?!\d)/);
     const years = stem.match(/(?:^|[^\d])((?:19|20)\d{2})(?!\d)/) || (ay && (+ay[2] - +ay[1] + 100) % 100 === 1);
-    if (years || new RegExp(`\\b(?:${MONTHS}|${MON_ABBR})\\b`, 'i').test(stem)) probs.push({ key: 'date', text: 'contains a date or year, so it will need renaming every session' });
+    if (years || new RegExp(`\\b(?:${MONTHS}|${MON_ABBR})\\b`, 'i').test(stem)) probs.push({ key: 'date', text: 'contains a date or year' });
     const generic = /^(?:document|doc|untitled|new|file|scan|scanned|img|image|presentation|ppt|slides?|slide deck|lecture|lecture slides|handout|notes|week|session|topic|unit|module|lesson|part|copy|final|draft|reading|readings|resource|resources|info|information|test|example)?[\s_\-]*(?:\d{1,3}|[ivx]{1,4})?[\s_\-]*(?:(?:19|20)\d{2})?[\s_\-]*(?:\(\d+\))?$/i;
     const words = stem.replace(/[_\-.]+/g, ' ').match(/[A-Za-z]{3,}/g) || [];
     if (generic.test(stem.trim()) || words.length === 0) probs.push({ key: 'vague', text: "doesn't describe what's inside" });
@@ -1157,26 +1160,36 @@ const BBCheck = (() => {
         'Flags Collaborate guest and session links, Teams meeting links and Zoom links.',
         'Collaborate recordings are flagged too, with separate advice, since they belong to a previous run.',
       ], issues: [] },
-      readings: { name: 'Readings outside the Resource List', why: "Assigned readings belong in the course's Resource List (Leganto), which keeps links working, tracks availability and handles library digitisations. Attached copies of articles or chapters may also fall outside the University's copying licence.", rules: [
+      readings: { name: 'Readings outside the Resource List', why: "Items that look like they might be readings for students. Not every one will be: a file that is part of an assessment, for example, is right where it is. Readings students are expected to do usually work best in the course's Resource List (Leganto), which keeps links working, tracks availability and handles library digitisations. Attached copies of articles or chapters may also fall outside the University's copying licence.",
+        help: 'For guidance on setting up and updating Resource Lists, see <a href="https://library.ed.ac.uk/research-teaching-staff/resource-lists">Resource Lists on the Library website</a>. If you don\'t have editing rights on your course\'s Resource List, contact Library Learning Services at <a href="mailto:Library.Learning@ed.ac.uk">Library.Learning@ed.ac.uk</a> for help.',
+        rules: [
         'Flags a link or attached file when the text around it says it is assigned reading: "essential reading", "required reading", "this week\'s reading", "please read", "read the following", "a copy of the reading" and similar.',
         'Flags documents and journal-style links on a page, or under a heading, called "Readings", "Reading list", "Set texts" and similar.',
         'Flags attached PDFs that are published journal articles (they carry a DOI), wherever they appear.',
         'Skips anything described as optional: "further reading", "if you\'re interested", "find out more", "you might also like" and similar.',
         'Skips Resource List items themselves.',
       ], issues: [] },
-      videos: { name: 'Videos', why: 'Every video in the course, with where it sits, so you can check each one still plays and has captions or a transcript.', rules: [
+      videos: { name: 'Videos', why: 'Every video in the course, with where it sits, so you can check each one still plays and has captions or a transcript.',
+        help: '<strong>For videos you have uploaded to Media Hopper</strong>, while you check them for the new session:</p><ul>'
+          + '<li>Add the <strong>EMS_PGT</strong> group as a co-editor and co-publisher. Open the video to edit it, then use the Collaboration tab.</li>'
+          + '<li>Check the title and description are clear and describe the video well.</li>'
+          + '<li>Check the publishing level. Unlisted is usually the most helpful, because students and staff can watch the video without being logged in to this particular course. Don\'t use it for videos with confidential or sensitive content that shouldn\'t be available outside Learn.</li>'
+          + '</ul><p>For help using Media Hopper, see <a href="https://uoe.sharepoint.com/sites/MediaHopperCreate">Media Hopper Create Support</a>.',
+        rules: [
         'Lists embedded and linked videos from Media Hopper, YouTube, Vimeo, TED and Panopto, Collaborate recordings, and video or audio files attached to the course.',
         'Looks for a transcript on the same page: an attached file or link mentioning a transcript, captions or subtitles, or a .vtt or .srt file.',
         'Notes any date or year in a video title, which often means a recording from a previous run.',
         "It can't see whether captions are switched on in Media Hopper or YouTube, so those need checking by hand.",
       ], issues: [] },
-      external: { name: 'External links to check', why: "This tool can't test other websites from the browser, so each link is listed once with every place it appears. Open each one and check it still works and is still the right page.", rules: [
+      external: { name: 'External links to check', why: "This tool can't test other websites from the browser, so each link is listed once with every place it appears. Open each one and check it still works and is still the right page.",
+        help: '<strong>While you check each link</strong>, look at its link text too. Links should describe where they go, for example &quot;NHS guidance on patient involvement&quot;, rather than show the web address or say &quot;click here&quot;. Screen readers read web addresses out character by character, and vague text doesn&#39;t say where a link leads.',
+        rules: [
         'Lists every link to a website outside Learn, once, with every place it appears.',
         'Videos, live session links and readings are listed in their own sections instead.',
         'Also notes vague link text ("click here", "link", "here") and links whose text is the bare web address.',
       ], issues: [] },
       files: { name: 'File names', why: "Students see file names in their downloads, long after leaving Learn. A good name says what's inside without needing the course around it: course code, topic, then type. Leave out years so files don't need renaming at every rollover.", rules: [
-        'Flags names containing a year, academic year or month.',
+        'Flags names containing a year, academic year or month, so you can check whether the file needs replacing, renaming or removing, or is fine as it is.',
         'Flags names that don\'t describe the content (Document1, Week 3, Slides, IMG_2034) or look like codes.',
         'Flags version labels such as "final", "v2", "draft" or "(1)".',
         'Suggests a name built from the course code and the topic of the folder it sits in.',
@@ -1262,7 +1275,8 @@ const BBCheck = (() => {
           snippet: `${dr.length ? snippet(label, dr, 400) : `<mark>${esc(label)}</mark>`}<br>${esc(platform)}${dur && !label.includes(dur) ? `, ${esc(dur)}` : ''}`, url: url || '',
           fix: dateNote + (platform === 'Collaborate recording'
             ? "A recording from a previous run (also listed under Live session links). Replace or remove it for the new session."
-            : transcriptName ? `Check it still plays and has captions. Transcript found on this page: ${esc(transcriptName)}.` : 'Check it still plays and has accurate captions. No transcript was found on this page; add one if the video carries content students need.') });
+            : (transcriptName ? `Check it still plays and has captions. Transcript found on this page: ${esc(transcriptName)}.` : 'Check it still plays and has accurate captions. No transcript was found on this page; add one if the video carries content students need.')
+              + (platform === 'Media Hopper' ? ' If it\'s your video, also check EMS_PGT is a co-editor and co-publisher, the title and description, and the publishing level (see the notes above).' : '')) });
       };
 
       // readings: collect candidates before the notes are removed
@@ -1270,7 +1284,11 @@ const BBCheck = (() => {
       const considerReading = (el, label, kind, href) => {
         const blk = blockOf(el);
         const own = blk === body ? label : blk.textContent.replace(/\s+/g, ' ').trim();
-        const ctx = (prevText(blk) + ' ' + own).trim();
+        // the text just before only counts when it introduces this item: it ends with a colon,
+        // or this item is a list item, an attached file, or a link on its own
+        const prev = prevText(blk);
+        const introduces = /:\s*$/.test(prev) || blk.tagName === 'LI' || (blk.hasAttribute && blk.hasAttribute('data-file')) || own.replace(label, '').replace(/[\s.,;:()\-–]+/g, '').length < 4;
+        const ctx = ((introduces ? prev : '') + ' ' + own).trim();
         const hd = headingBefore(blk);
         if (OPTIONAL.test(ctx) || OPTIONAL.test(hd)) return;
         if (/\bresource lists?\b|\breading lists?\b|\bleganto\b/i.test(own + ' ' + label)) return;
@@ -1371,8 +1389,8 @@ const BBCheck = (() => {
         const snip = textIsUrl ? '' : (i > -1 && text && ctx.length < 400 ? snippet(ctx, [[i, i + text.length]]) : `<mark>${esc(text)}</mark>`);
         let textNote = '';
         if (!a.dataset.item) {
-          if (VAGUE.test(text.replace(/[.:!]+$/, ''))) textNote = `The link text "${text}" doesn't say where it goes. Rewrite it to describe the destination, for example "Week 3 discussion board".`;
-          else if (/^(?:https?:\/\/|www\.)/i.test(text)) textNote = 'The link text is the web address itself, which screen readers read out character by character. Replace it with a short description of the page.';
+          if (VAGUE.test(text.replace(/[.:!]+$/, ''))) textNote = `The link text "${text}" doesn't say where it goes. For accessibility, change it to a short description of the destination, for example "Week 3 discussion board".`;
+          else if (/^(?:https?:\/\/|www\.)/i.test(text) || /^[\w-]+(?:\.[\w-]+)+(?:\/\S*)?$/.test(text)) textNote = 'The link shows the web address itself. For accessibility, change the link text to a short description of where it goes, such as the page or organisation name (not "click here" or "link"). Screen readers read web addresses out character by character.';
         }
         const h = a.dataset.item ? '' : headingBefore(a);
         const platform = videoPlatform(href);
@@ -1421,8 +1439,8 @@ const BBCheck = (() => {
       for (const r of readingItems) {
         CAT.readings.issues.push({ loc: locText, heading: r.heading, snippet: r.snippet, url: r.href || '',
           fix: r.kind === 'file'
-            ? "Add this reading to the course's Resource List and ask the Library to digitise it, rather than attaching a copy. Then point students to the Resource List."
-            : "Add this reading to the course's Resource List and point students to the list instead. The Library keeps Resource List links working." });
+            ? "Review this file. If it's a reading students are expected to do, consider adding it to the Resource List (the Library can digitise articles and chapters) and pointing students there. If it belongs here, such as part of an assessment, no change is needed."
+            : "Review this link. If it's a reading students are expected to do, consider adding it to the Resource List and pointing students there. If it belongs here, no change is needed." });
       }
 
       // file names
@@ -1435,8 +1453,13 @@ const BBCheck = (() => {
         const topic = topicFrom(page.loc);
         const tw = typeWord(f.name);
         const suggestion = topic ? `${res.short} ${topic}${tw && !new RegExp(tw, 'i').test(topic) ? ' ' + tw : ''}${ext}`.replace(/[\\/:*?"<>|]/g, '-') : '';
-        CAT.files.issues.push({ loc: locText, heading: '', snippet: `<mark>${esc(f.name)}</mark>`,
-          fix: `This name ${probs.map(p => p.text).join(', and ')}. Rename the file before uploading it to the new course${suggestion ? `, for example "${esc(suggestion)}"` : ''}.` });
+        const dated = probs.some(p => p.key === 'date');
+        const other = probs.filter(p => p.key !== 'date');
+        const parts = [];
+        if (dated) parts.push("The name contains a date or year. Check whether the file is still right for the new session: it may need replacing with a newer version (a handbook, for example), renaming, or removing, or it may be fine as it is (a policy that hasn't changed since it was published).");
+        if (other.length) parts.push(`The name ${other.map(p => p.text).join(', and ')}. Consider renaming it${suggestion ? `, for example "${esc(suggestion)}"` : ''}.`);
+        else if (dated && suggestion) parts.push(`If you rename it, a name without the year saves renaming it again next time, for example "${esc(suggestion)}".`);
+        CAT.files.issues.push({ loc: locText, heading: '', snippet: `<mark>${esc(f.name)}</mark>`, fix: parts.join(' ') });
       }
     }
 
@@ -1552,6 +1575,7 @@ const BBCheck = (() => {
       </li>`).join('');
       return `<details class="cat" id="cat-${c.id}"${open}><summary>${esc(c.name)} <span class="n">${c.issues.length}</span></summary>
         <p class="why">${esc(c.why)}</p>
+        ${c.help ? `<div class="help"><p>${c.help}</p></div>` : ''}
         <details class="rules"><summary>How this is checked</summary><div><ul>${c.rules.map(x => `<li>${esc(x)}</li>`).join('')}</ul></div></details>
         ${c.issues.length ? `<ul class="issues">${items}</ul>` : '<p class="none">Nothing found.</p>'}
       </details>`;
@@ -1573,7 +1597,7 @@ ${left.length ? `<p>University template items left out of this audit: ${left.map
 <p>Work through each table and tick Done as you update the new course on Learn. The Where column shows the folder and page, and the highlighted text shows exactly what was found.</p>
 <h1>Summary</h1><ul>${cats.map(c => `<li>${esc(c.name)}: ${c.issues.length}</li>`).join('')}</ul>`;
     for (const c of cats) {
-      h += `<h1>${esc(c.name)}</h1><p>${esc(c.why)}</p>`;
+      h += `<h1>${esc(c.name)}</h1><p>${esc(c.why)}</p>${c.help ? `<p>${c.help}</p>` : ''}`;
       if (!c.issues.length) { h += '<p><em>Nothing found.</em></p>'; continue; }
       h += `<table data-widths="25,32,33,10"><thead><tr><th>Where</th><th>${c.id === 'videos' ? 'Video' : 'What was found'}</th><th>What to do</th><th>Done</th></tr></thead><tbody>`;
       for (const i of c.issues) {
