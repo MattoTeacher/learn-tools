@@ -152,6 +152,13 @@
       .tools-grid { grid-template-columns: 1fr; }
     }
     .tools-grid.two-up { grid-template-columns: 1fr 1fr; }
+    .tools-grid.three-up { grid-template-columns: repeat(3, 1fr); }
+    @media (max-width: 760px) {
+      .tools-grid.three-up { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 480px) {
+      .tools-grid.three-up { grid-template-columns: 1fr; }
+    }
     @media (max-width: 480px) {
       .tools-grid.two-up { grid-template-columns: 1fr; }
     }
@@ -351,6 +358,144 @@
     .sharepoint-btn:hover { opacity: 0.88; }
     .sharepoint-btn::after { content: " ↗"; }
 
+    /* ── Double-width card (staff contacts: two versions) ── */
+    .tool-card-wide { grid-column: span 2; }
+    .tool-card-wide:hover { box-shadow: none; transform: none; }
+    .tool-card-wide .wide-intro { flex: 0 0 auto; margin-bottom: 14px; }
+    .wide-options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      flex: 1;
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+    }
+    .wide-option {
+      display: flex;
+      flex-direction: column;
+      padding-right: 16px;
+    }
+    .wide-option + .wide-option {
+      padding-right: 0;
+      padding-left: 16px;
+      border-left: 1px solid var(--border);
+    }
+    .tool-card .wide-option h3 {
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--blue);
+      line-height: 1.2;
+      margin-bottom: 6px;
+    }
+    .tool-card .wide-option p { font-size: 12px; margin-bottom: 14px; }
+    .wide-option a:not(.tool-card-link) { color: var(--muted-blue); font-weight: 600; }
+    .option-badge {
+      align-self: flex-start;
+      font-size: 9.5px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--spruce);
+      background: #f0f2f4;
+      border: 1px solid #d4d8de;
+      border-radius: 4px;
+      padding: 2px 7px;
+      margin-bottom: 8px;
+    }
+    .option-link-external::after { content: " ↗"; }
+    @media (max-width: 480px) {
+      .tool-card-wide { grid-column: span 1; }
+      .wide-options { grid-template-columns: 1fr; }
+      .wide-option { padding-right: 0; }
+      .wide-option + .wide-option { padding-left: 0; border-left: none; border-top: 1px solid var(--border); padding-top: 14px; margin-top: 14px; }
+    }
+
+    /* ── Subsections ── */
+    .subsection-header {
+      display: flex;
+      align-items: baseline;
+      gap: 12px;
+      margin: 34px 0 4px;
+      padding-top: 22px;
+      border-top: 1px dashed var(--border);
+    }
+    .subsection-heading {
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 20px;
+      font-weight: 600;
+      color: var(--blue);
+    }
+    .subsection-intro {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    /* ── Icon sources ── */
+    .svg-note {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-left: 5px solid var(--jade);
+      border-radius: 10px;
+      padding: 16px 22px;
+      margin: 14px 0;
+      font-size: 13.5px;
+      color: var(--text);
+      line-height: 1.65;
+    }
+    .svg-note strong { color: var(--blue); }
+    .sources-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+    }
+    @media (max-width: 600px) {
+      .sources-grid { grid-template-columns: 1fr; }
+    }
+    .source-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px 20px;
+      display: flex;
+      flex-direction: column;
+    }
+    .source-card h3 {
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--blue);
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+    .source-card p {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 10px;
+    }
+    .source-card p:last-child { margin-bottom: 0; }
+    .source-card a { color: var(--muted-blue); font-weight: 600; }
+    .source-facts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .source-fact {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--spruce);
+      background: #f0f2f4;
+      border: 1px solid #d4d8de;
+      border-radius: 4px;
+      padding: 2px 7px;
+    }
+    .source-fact.good { color: #154734; background: #eaf3ee; border-color: #c4dccf; }
+    .source-fact.warn { color: #6d4f47; background: #f7f0ec; border-color: #e3d3cb; }
+    .source-links { list-style: none; margin: 0 0 10px; padding: 0; font-size: 12.5px; }
+    .source-links li { margin-bottom: 4px; }
+
     /* ── Footer ── */
     footer {
       background: var(--blue);
@@ -438,12 +583,12 @@
 
     <hr class="section-divider">
 
-    <!-- ── Interactive content tools ── -->
+    <!-- ── Interactive and styled content tools ── -->
     <div class="section-header">
-      <span class="section-heading">Interactive content tools</span>
-      <span class="section-tag">6 tools</span>
+      <span class="section-heading">Interactive and styled content tools</span>
+      <span class="section-tag">8 tools</span>
     </div>
-    <p class="section-intro">Generate HTML to embed interactive and styled content directly into LEARN pages — no H5P or third-party plugins needed. Build your content in the tool, then copy and paste the generated code into your course.</p>
+    <p class="section-intro">Generate HTML for interactive activities and styled content in LEARN pages — no H5P or third-party plugins needed. Build your content in the tool, then copy and paste the generated code into your course.</p>
 
     <div class="tools-grid">
 
@@ -480,7 +625,7 @@
       <a class="tool-card" href="https://mattoteacher.github.io/learn-tools/quote-builder/index.html">
         <div class="tool-card-top" style="background:#C25E03;"></div>
         <div class="tool-card-body">
-          <span class="tool-card-label" style="color:#C25E03;">Content</span>
+          <span class="tool-card-label" style="color:#C25E03;">Styled</span>
           <h2>Quote Builder</h2>
           <p>Generate stylised pull-quote HTML for LEARN pages. Choose from brand-coloured quote styles, enter your text, and copy the ready-to-paste HTML code.</p>
           <span class="tool-card-link" style="background:#C25E03;">Open tool</span>
@@ -506,6 +651,29 @@
           <span class="tool-card-link" style="background:#830065;">Open tool</span>
         </div>
       </a>
+
+      <div class="tool-card tool-card-wide">
+        <div class="tool-card-top" style="background:#004F71;"></div>
+        <div class="tool-card-body">
+          <span class="tool-card-label" style="color:#004F71;">Styled &middot; 2 options</span>
+          <h2>Staff Contacts Page</h2>
+          <p class="wide-intro">Create a stylised staff or programme contacts page for LEARN, with photos, bios and contact details, as HTML to paste into your course. Choose the version that suits the access you have.</p>
+          <div class="wide-options">
+            <div class="wide-option">
+              <span class="option-badge">Power App &middot; Login</span>
+              <h3>Staff Contacts Page Builder</h3>
+              <p>Reads staff details from a SharePoint list. You'll need access to the app and the list: request it through Microsoft, then <a href="mailto:Matt.Sanders@ed.ac.uk">get in touch</a> and I'll help you get set up.</p>
+              <a class="tool-card-link option-link-external" style="background:#333F48;" href="https://apps.powerapps.com/play/e/default-2e9f06b0-1669-4589-8789-10a06934dc61/a/a9c3655a-04a9-4af9-bfda-91371b035447?tenantId=2e9f06b0-1669-4589-8789-10a06934dc61&hint=9bad43ec-1d16-44e1-b44e-14a2fce1f89a&sourcetime=1783524373595" target="_blank" rel="noopener">Open in Power Apps</a>
+            </div>
+            <div class="wide-option">
+              <span class="option-badge" style="color:#004F71; background:#eaf2f6; border-color:#c3d9e3;">Web app &middot; No login</span>
+              <h3>Staff Page Generator</h3>
+              <p>Upload staff details as an Excel or CSV file instead. Good if you don't have access to the Power App, or would rather work from a spreadsheet.</p>
+              <a class="tool-card-link" style="background:#004F71;" href="https://mattoteacher.github.io/learn-tools/staff-contacts-page/index.html">Open tool</a>
+            </div>
+          </div>
+        </div>
+      </div>
 
     </div>
 
@@ -534,8 +702,8 @@
         <div class="tool-card-top" style="background:#830065;"></div>
         <div class="tool-card-body">
           <span class="tool-card-label" style="color:#830065;">Rollover</span>
-          <h2>Course Rollover Checker</h2>
-          <p>Check a course before it runs again. Finds dates and times, Learn links that break when the course is copied, live session links, readings outside the Resource List, external links and unclear file names, then gives you a Word checklist to work through.</p>
+          <h2>Course Rollover Audit</h2>
+          <p>Audit a course before it runs again. Finds dates and times, unfilled template text, broken links, Learn links that break when the course is copied, live session links, readings outside the Resource List, videos, external links and unclear file names, then gives you a Word checklist to work through.</p>
           <span class="tool-card-link" style="background:#830065;">Open tool</span>
         </div>
       </a>
@@ -544,47 +712,12 @@
 
     <hr class="section-divider">
 
-    <!-- ── Staff tools ── -->
+    <!-- ── Icons and images ── -->
     <div class="section-header">
-      <span class="section-heading">Staff tools</span>
-      <span class="section-tag">2 options</span>
+      <span class="section-heading">Icons and images</span>
+      <span class="section-tag">Library &amp; free sources</span>
     </div>
-    <p class="section-intro">Two ways to build a staff or programme contacts page for LEARN, depending on what access you have.</p>
-
-    <div class="powerapps-grid" style="margin-bottom:0;">
-      <div class="powerapps-card">
-        <div class="powerapps-card-body">
-          <span class="powerapps-badge">&#9632; Power App &middot; Login required</span>
-          <h2>Staff Contacts Page Builder</h2>
-          <p>Create stylised HTML for course or programme contacts pages in LEARN, including staff photos, bios, and contact information. The app reads from a SharePoint list and generates ready-to-use HTML to paste into your course.</p>
-          <div class="powerapps-note">
-            <strong>Access &amp; setup:</strong> This app requires access to both the Power App and its associated SharePoint list. Staff photos also need to be uploaded to a content repository in a specific format. Click the link below to request access through Microsoft, then <a href="mailto:Matt.Sanders@ed.ac.uk">get in touch</a> and I can help you get set up.
-          </div>
-          <a class="powerapps-link" href="https://apps.powerapps.com/play/e/default-2e9f06b0-1669-4589-8789-10a06934dc61/a/a9c3655a-04a9-4af9-bfda-91371b035447?tenantId=2e9f06b0-1669-4589-8789-10a06934dc61&hint=9bad43ec-1d16-44e1-b44e-14a2fce1f89a&sourcetime=1783524373595" target="_blank" rel="noopener">Open in Power Apps</a>
-        </div>
-      </div>
-
-      <div class="powerapps-card" style="border-left-color:#004F71;">
-        <div class="powerapps-card-body">
-          <span class="powerapps-badge" style="color:#004F71; background:#eaf2f6; border-color:#c3d9e3;">&#9632; Browser-based &middot; No login required</span>
-          <h2>Staff Page Generator</h2>
-          <p>Create the same kind of stylised staff or programme contacts page without needing SharePoint or Power Apps access. Upload a spreadsheet of staff details as an Excel or CSV file, and the tool generates ready-to-use HTML to paste into your course.</p>
-          <div class="powerapps-note" style="border-left-color:#004F71;">
-            <strong>Good for:</strong> Anyone who doesn't have access to the SharePoint list or Power App above, or who'd rather work from a spreadsheet they already have.
-          </div>
-          <a class="tool-card-link" style="background:#004F71;" href="https://mattoteacher.github.io/learn-tools/staff-contacts-page/index.html">Open tool</a>
-        </div>
-      </div>
-    </div>
-
-    <hr class="section-divider">
-
-    <!-- ── Icon library ── -->
-    <div class="section-header">
-      <span class="section-heading">Icon library</span>
-      <span class="section-tag">SharePoint</span>
-    </div>
-    <p class="section-intro">A shared library of icons and images for use with the tools above.</p>
+    <p class="section-intro">A shared library of icons and images for use with the tools above, plus free sources for finding more.</p>
 
     <div class="sharepoint-card">
       <div>
@@ -597,6 +730,55 @@
         </div>
       </div>
       <a class="sharepoint-btn" href="https://uoe.sharepoint.com/sites/USHER-DEU/Shared%20Documents/Forms/AllItems.aspx" target="_blank" rel="noopener">Open in SharePoint</a>
+    </div>
+
+    <div class="subsection-header">
+      <span class="subsection-heading">Free icon sources</span>
+    </div>
+    <p class="subsection-intro">Can't find what you need in the library? These sites have free icons you can use in teaching materials. Always check the licence for the icon you download, and add a credit when the source asks for one.</p>
+
+    <div class="svg-note">
+      <strong>Download SVG files where you can.</strong> If you're going to use an icon in the image tools — for example the Document Header Creator or Module Icon Creator — choose the SVG version. SVG icons can be recoloured to match your brand colour and stay sharp at any size; PNG and JPG files can't be recoloured in the same way and may look blurry when enlarged.
+    </div>
+
+    <div class="sources-grid">
+
+      <div class="source-card">
+        <h3>Microsoft 365 icons</h3>
+        <div class="source-facts"><span class="source-fact good">Free, no credit needed</span><span class="source-fact good">Save as SVG</span></div>
+        <p>Already built into PowerPoint, Word, Excel and Outlook: choose <strong>Insert &gt; Icons</strong> and search. Microsoft says these icons are free to use with no royalty or copyright to worry about.</p>
+        <p>To get an SVG file for the image tools, insert the icon in PowerPoint, right-click it, choose <strong>Save as Picture</strong> and pick SVG as the file type. <a href="https://support.microsoft.com/office/insert-icons-in-microsoft-365-e2459f17-3996-4795-996e-b9a13486fa79" target="_blank" rel="noopener">How to insert icons</a></p>
+      </div>
+
+      <div class="source-card">
+        <h3>Google Material Symbols</h3>
+        <div class="source-facts"><span class="source-fact good">Free, open licence</span><span class="source-fact good">SVG download</span></div>
+        <p>Thousands of simple, consistent icons from Google, free to use under an open-source licence (Apache 2.0). Search, adjust the style and weight, then download the icon as an SVG.</p>
+        <p><a href="https://fonts.google.com/icons" target="_blank" rel="noopener">Google Material Symbols</a></p>
+      </div>
+
+      <div class="source-card">
+        <h3>Open-source icon sets</h3>
+        <div class="source-facts"><span class="source-fact good">Free, no credit needed</span><span class="source-fact good">SVG download</span></div>
+        <p>Well-designed sets of outline-style icons released under open licences (MIT or ISC), free for any use. Each lets you search and download single icons as SVG.</p>
+        <ul class="source-links">
+          <li><a href="https://phosphoricons.com/" target="_blank" rel="noopener">Phosphor Icons</a></li>
+          <li><a href="https://tabler.io/icons" target="_blank" rel="noopener">Tabler Icons</a></li>
+          <li><a href="https://lucide.dev/icons/" target="_blank" rel="noopener">Lucide</a></li>
+        </ul>
+      </div>
+
+      <div class="source-card">
+        <h3>Large icon libraries</h3>
+        <div class="source-facts"><span class="source-fact warn">Free plans need a credit</span><span class="source-fact warn">SVG varies</span></div>
+        <p>Huge collections that mix free and paid icons, with the licence shown for each icon. Free downloads usually require a visible credit to the site and designer. Flaticon's free plan gives PNG files only (SVG needs Premium), and Magnific (formerly Freepik) asks free users to credit "Designed by Magnific".</p>
+        <ul class="source-links">
+          <li><a href="https://www.flaticon.com/" target="_blank" rel="noopener">Flaticon</a></li>
+          <li><a href="https://www.iconfinder.com/" target="_blank" rel="noopener">Iconfinder</a></li>
+          <li><a href="https://www.magnific.com/" target="_blank" rel="noopener">Magnific</a></li>
+        </ul>
+      </div>
+
     </div>
 
   </main>
