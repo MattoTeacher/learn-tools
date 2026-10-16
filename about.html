@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>About these tools · Matt's LEARN Tools</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;1,400&family=Source+Sans+3:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red:        #D50032;
+      --blue:       #041E42;
+      --bright-blue:#007288;
+      --jade:       #487A7B;
+      --purple:     #830065;
+      --dark-green: #154734;
+      --muted-blue: #004F71;
+      --spruce:     #333F48;
+      --orange:     #C25E03;
+      --brown:      #6D4F47;
+
+      --bg:         #f5f4f0;
+      --card-bg:    #ffffff;
+      --text:       #1a1a2e;
+      --text-muted: #555e6e;
+      --border:     #dde0e6;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Source Sans 3', system-ui, sans-serif;
+      min-height: 100vh;
+      line-height: 1.65;
+    }
+
+    /* ── Hero (matches index.html) ── */
+    .hero { background: var(--blue); position: relative; overflow: hidden; }
+    .hero-inner { max-width: 960px; margin: 0 auto; padding: 36px 28px 32px; }
+    .back-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 13px; font-weight: 600; color: #a8b8cc;
+      text-decoration: none; margin-bottom: 18px;
+    }
+    .back-link:hover, .back-link:focus-visible { color: #ffffff; text-decoration: underline; }
+    .hero-eyebrow {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--jade);
+      margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+    }
+    .hero-eyebrow::before {
+      content: ''; display: inline-block; width: 24px; height: 2px;
+      background: var(--jade); border-radius: 1px;
+    }
+    .hero h1 {
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: clamp(30px, 5vw, 46px); font-weight: 600;
+      color: #ffffff; line-height: 1.1; margin-bottom: 12px; letter-spacing: -0.01em;
+    }
+    .hero h1 span { color: var(--jade); }
+    .hero-sub { font-size: 15px; color: #a8b8cc; max-width: 600px; }
+    .hero-bar {
+      height: 5px;
+      background: linear-gradient(to right,
+        #D50032 0%,    #D50032 12.5%,
+        #007288 12.5%, #007288 25%,
+        #487A7B 25%,   #487A7B 37.5%,
+        #830065 37.5%, #830065 50%,
+        #154734 50%,   #154734 62.5%,
+        #C25E03 62.5%, #C25E03 75%,
+        #004F71 75%,   #004F71 87.5%,
+        #6D4F47 87.5%, #6D4F47 100%
+      );
+    }
+
+    /* ── Layout ── */
+    .main {
+      max-width: 960px; margin: 0 auto; padding: 40px 28px 60px;
+      display: grid; grid-template-columns: 220px 1fr; gap: 40px; align-items: start;
+    }
+    @media (max-width: 760px) {
+      .main { grid-template-columns: 1fr; gap: 24px; padding: 28px 16px 48px; }
+      .hero-inner { padding: 28px 16px 26px; }
+    }
+
+    /* ── Contents ── */
+    .toc {
+      position: sticky; top: 24px;
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 10px; padding: 18px 20px;
+    }
+    .toc-title {
+      font-size: 10px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 10px;
+    }
+    .toc ol { list-style: none; }
+    .toc li + li { margin-top: 6px; }
+    .toc a { font-size: 14px; color: var(--muted-blue); text-decoration: none; }
+    .toc a:hover, .toc a:focus-visible { text-decoration: underline; }
+    @media (max-width: 760px) { .toc { position: static; } }
+
+    /* ── Sections ── */
+    .content { min-width: 0; }
+    .section {
+      background: var(--card-bg); border: 1px solid var(--border);
+      border-radius: 10px; overflow: hidden; margin-bottom: 18px;
+      scroll-margin-top: 20px;
+    }
+    .section-top { height: 5px; }
+    .section-body { padding: 22px 26px 24px; }
+    @media (max-width: 480px) { .section-body { padding: 18px 18px 20px; } }
+    .section h2 {
+      font-family: 'Crimson Pro', Georgia, serif;
+      font-size: 24px; font-weight: 600; color: var(--blue);
+      line-height: 1.2; margin-bottom: 10px;
+    }
+    .section p { font-size: 15.5px; margin-bottom: 12px; }
+    .section p:last-child { margin-bottom: 0; }
+    .section ul { margin: 4px 0 14px 20px; }
+    .section li { font-size: 15.5px; margin-bottom: 6px; }
+    .section a { color: var(--bright-blue); text-underline-offset: 2px; }
+    .section a:hover, .section a:focus-visible { color: var(--blue); }
+    .callout {
+      border-left: 3px solid var(--jade); background: #eef4f4;
+      padding: 10px 14px; border-radius: 0 6px 6px 0; font-weight: 500;
+    }
+
+    .reviewed {
+      font-size: 13px; color: var(--text-muted);
+      text-align: right; margin-top: 6px;
+    }
+
+    /* ── Footer (matches index.html) ── */
+    footer {
+      background: var(--blue); color: #7a90aa; font-size: 13px;
+      padding: 28px; text-align: center; line-height: 1.8;
+    }
+    footer strong { color: #c8d8e8; }
+    footer a { color: var(--jade); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+    .footer-divider {
+      width: 40px; height: 2px; background: var(--jade);
+      border-radius: 1px; margin: 16px auto; opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+
+  <header class="hero">
+    <div class="hero-inner">
+      <a class="back-link" href="./">&larr; Back to all tools</a>
+      <div class="hero-eyebrow">Matt's LEARN Tools</div>
+      <h1>About these <span>tools</span></h1>
+      <p class="hero-sub">How these tools were made, how your data is handled, and what you can and can't re-use.</p>
+    </div>
+    <div class="hero-bar"></div>
+  </header>
+
+  <main class="main">
+
+    <nav class="toc" aria-label="On this page">
+      <div class="toc-title">On this page</div>
+      <ol>
+        <li><a href="#about">About these tools</a></li>
+        <li><a href="#not-official">Not &ldquo;official&rdquo;</a></li>
+        <li><a href="#your-data">Your data</a></li>
+        <li><a href="#risk">Use at your own risk</a></li>
+        <li><a href="#changes">Changes</a></li>
+        <li><a href="#reuse">Re-use of code</a></li>
+        <li><a href="#privacy">Privacy</a></li>
+        <li><a href="#contact">Contact and feedback</a></li>
+        <li><a href="#guidance">AI and data guidance</a></li>
+      </ol>
+    </nav>
+
+    <div class="content">
+
+      <section class="section" id="about">
+        <div class="section-top" style="background: var(--blue)"></div>
+        <div class="section-body">
+          <h2>About these tools</h2>
+          <p>These tools are set up by me, Matt Sanders, to help with my work at the University of Edinburgh. They are shared publicly on GitHub for others to use or adapt for their own needs.</p>
+          <p>They were mostly coded through Claude by Anthropic (an AI large language model), with me designing the specifications, testing the tools and making minor adjustments to the code. The image tools were adapted from templates created by my previous team, the Usher Digital Education Unit.</p>
+          <p>While generative AI was used to write the code, no confidential or personal data was shared with it during development. The tools themselves do not connect to, or send data to, any AI service.</p>
+        </div>
+      </section>
+
+      <section class="section" id="not-official">
+        <div class="section-top" style="background: var(--red)"></div>
+        <div class="section-body">
+          <h2>Not &ldquo;official&rdquo;</h2>
+          <p>These tools are not affiliated with, endorsed by, or supported by Anthology Inc. (the owner of Blackboard). They are also not an officially supported platform of the University of Edinburgh.</p>
+          <p>All trademarks relating to LEARN, Learn Ultra, Blackboard, Media Hopper and Kaltura belong to their respective owners. LEARN is named here only to describe the platform these tools are used to create content for. The University of Edinburgh name and logos are trademarks of the University and are used here only to support University courses.</p>
+        </div>
+      </section>
+
+      <section class="section" id="your-data">
+        <div class="section-top" style="background: var(--bright-blue)"></div>
+        <div class="section-body">
+          <h2>Your data</h2>
+          <p>The tools hosted on this site run entirely in your web browser. Any information you enter is stored locally on your own device (for example, in your browser&rsquo;s local storage) and is not uploaded or sent anywhere by the tools.</p>
+          <p>If you clear your browser data, or use a different device or browser, this information will not be available. If you are using a shared computer, remember that other users of that browser may be able to see stored data.</p>
+          <p>The one exception is the Staff Contacts (Power Apps) version, which is linked from this site but not hosted here. It runs within the University&rsquo;s Microsoft 365 environment, and any staff information it uses is stored and managed within those University systems, subject to the University&rsquo;s own policies.</p>
+        </div>
+      </section>
+
+      <section class="section" id="risk">
+        <div class="section-top" style="background: var(--orange)"></div>
+        <div class="section-body">
+          <h2>Use at your own risk</h2>
+          <p>These tools are provided &ldquo;as is&rdquo;, without warranty of any kind, express or implied, including any warranty of accuracy, reliability, fitness for a particular purpose, or non-infringement. You use them entirely at your own risk.</p>
+          <p class="callout">Always check results before relying on them, particularly for anything affecting students, assessment or course content.</p>
+          <p>To the fullest extent permitted by law, I accept no liability for any loss, damage or issues arising from the use of, or inability to use, these tools.</p>
+          <p>These tools are not an official University of Edinburgh service at this time. However, they were created for use by me and my colleagues as part of my digital education role within the University, so the University retains any related rights to adapt, re-use or license this code in future.</p>
+        </div>
+      </section>
+
+      <section class="section" id="changes">
+        <div class="section-top" style="background: var(--muted-blue)"></div>
+        <div class="section-body">
+          <h2>Changes</h2>
+          <p>Because I maintain these tools alongside my role, they may be changed, updated or removed at any time without notice.</p>
+        </div>
+      </section>
+
+      <section class="section" id="reuse">
+        <div class="section-top" style="background: var(--purple)"></div>
+        <div class="section-body">
+          <h2>Re-use of code</h2>
+          <p>The full source code is available in <a href="https://github.com/MattoTeacher/learn-tools/">Matt&rsquo;s LEARN Tools GitHub repository</a>. You&rsquo;re welcome to review it, learn from it, or adapt the code for your own needs.</p>
+          <p><strong>That permission covers the code only.</strong> It does not cover:</p>
+          <ul>
+            <li>the University of Edinburgh name, logos and crest, which are trademarks of the University</li>
+            <li>icons used in these tools, which are used with permission and require attribution (see the Module Image Builder for details)</li>
+            <li>image templates adapted from work by the Edinburgh Medical School Digital Education Unit</li>
+          </ul>
+          <p>If you adapt these tools, please remove these assets and replace them with your own, or get permission from the rights holder(s). Links to free and Creative Commons icon and image sites are included on the <a href="./">main tools page</a>.</p>
+        </div>
+      </section>
+
+      <section class="section" id="privacy">
+        <div class="section-top" style="background: var(--jade)"></div>
+        <div class="section-body">
+          <h2>Privacy</h2>
+          <p>As these tools are hosted on GitHub Pages, GitHub may collect data from your visit in line with its privacy statement. See the <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub General Privacy Statement</a> for more information.</p>
+          <p>These pages also load fonts from Google Fonts and code libraries from public content delivery networks. These services may receive basic technical information, such as your IP address, when a page loads. Information you enter into the tools is not sent to them.</p>
+        </div>
+      </section>
+
+      <section class="section" id="contact">
+        <div class="section-top" style="background: var(--dark-green)"></div>
+        <div class="section-body">
+          <h2>Contact and feedback</h2>
+          <p>These tools were created for my work at the University of Edinburgh, so any support is informal and on a best-efforts basis.</p>
+          <p>Anyone outside the University is welcome to report bugs through <a href="https://github.com/MattoTeacher/learn-tools/issues">GitHub Issues</a>. University staff can contact me directly (my contact details are in the Outlook directory).</p>
+        </div>
+      </section>
+
+      <section class="section" id="guidance">
+        <div class="section-top" style="background: var(--brown)"></div>
+        <div class="section-body">
+          <h2>AI and data guidance for University staff and students</h2>
+          <p>These tools are not intended to be used with personal data (apart from the Staff Contacts tool), but University staff may find it useful to review the University&rsquo;s <a href="https://data-protection.ed.ac.uk/">data protection guidance</a>.</p>
+          <p>Guidance on the risks, opportunities and appropriate use of generative AI for staff and students is available at <a href="https://www.ed.ac.uk/ai/guidance">Guidance for students and staff on AI use</a>.</p>
+        </div>
+      </section>
+
+      <p class="reviewed">Last reviewed: 16 October 2026</p>
+
+    </div>
+  </main>
+
+  <footer>
+    <div><strong>Matt Sanders</strong></div>
+    <div class="footer-divider"></div>
+    <div>
+      <a href="./">&larr; Back to all tools</a>
+    </div>
+  </footer>
+
+</body>
+</html>
