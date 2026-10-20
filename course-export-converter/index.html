@@ -232,6 +232,132 @@ footer p { margin: 0 0 .3rem; }
 </div>
 
 <script>
+/* ===== BBZip: read a zip file in pieces, straight from disk =====
+   Reads only the zip's index (central directory) up front, then reads each file on demand
+   with File.slice(), so the size of the zip doesn't matter. Supports ZIP64 (zips over 4GB
+   or with very large files), stored and deflated entries.
+   Same shape as the parts of JSZip the tools use: zip.files, zip.file(name).async(type),
+   plus .stream() and .size for copying large files without holding them in memory. */
+const BBZip = (() => {
+  const u16 = (b, o) => b[o] | (b[o + 1] << 8);
+  const u32 = (b, o) => (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0;
+  const u64 = (b, o) => u32(b, o) + u32(b, o + 4) * 0x100000000;
+  const bytes = async (blob, start, end) => new Uint8Array(await blob.slice(start, end).arrayBuffer());
+  const utf8 = new TextDecoder('utf-8');
+  // names without the UTF-8 flag are CP437; Blackboard's are ASCII in practice, so decode leniently
+  const latin = new TextDecoder('latin1');
+
+  class NotZipError extends Error { constructor(m) { super(m); this.name = 'NotZipError'; } }
+
+  async function open(blob) {
+    const size = blob.size;
+    if (size < 22) throw new NotZipError('Too small to be a zip file.');
+    // end of central directory: in the last 22 bytes + up to 64KB of comment
+    const tailStart = Math.max(0, size - 22 - 65535);
+    const tail = await bytes(blob, tailStart, size);
+    let eocd = -1;
+    for (let i = tail.length - 22; i >= 0; i--) if (u32(tail, i) === 0x06054b50) { eocd = i; break; }
+    if (eocd < 0) throw new NotZipError('The end of the file, where a zip keeps its list of contents, is missing, so it may not be a zip or the download may be incomplete.');
+    let count = u16(tail, eocd + 10), cdSize = u32(tail, eocd + 12), cdOffset = u32(tail, eocd + 16);
+    // ZIP64: the locator sits just before the end record
+    if (count === 0xffff || cdSize === 0xffffffff || cdOffset === 0xffffffff) {
+      const locAbs = tailStart + eocd - 20;
+      const loc = await bytes(blob, locAbs, locAbs + 20);
+      if (u32(loc, 0) !== 0x07064b50) throw new NotZipError('ZIP64 locator missing.');
+      const recAbs = u64(loc, 8);
+      const rec = await bytes(blob, recAbs, recAbs + 56);
+      if (u32(rec, 0) !== 0x06064b50) throw new NotZipError('ZIP64 end record missing.');
+      count = u64(rec, 32); cdSize = u64(rec, 40); cdOffset = u64(rec, 48);
+    }
+    if (cdOffset + cdSize > size) throw new NotZipError('The zip directory points past the end of the file. The download may be incomplete.');
+    const cd = await bytes(blob, cdOffset, cdOffset + cdSize);
+
+    const files = Object.create(null);
+    let p = 0;
+    for (let n = 0; n < count; n++) {
+      if (u32(cd, p) !== 0x02014b50) throw new NotZipError('Damaged zip directory.');
+      const flags = u16(cd, p + 8), method = u16(cd, p + 10);
+      let compSize = u32(cd, p + 20), size2 = u32(cd, p + 24);
+      const nameLen = u16(cd, p + 28), extraLen = u16(cd, p + 30), commentLen = u16(cd, p + 32);
+      let offset = u32(cd, p + 42);
+      const nameBytes = cd.subarray(p + 46, p + 46 + nameLen);
+      const name = (flags & 0x800 ? utf8 : (nameBytes.every(b => b < 0x80) ? utf8 : latin)).decode(nameBytes);
+      // ZIP64 extra field holds the real values for any field set to 0xFFFFFFFF, in this order
+      let e = p + 46 + nameLen;
+      const eEnd = e + extraLen;
+      while (e + 4 <= eEnd) {
+        const id = u16(cd, e), len = u16(cd, e + 2);
+        if (id === 0x0001) {
+          let q = e + 4;
+          if (size2 === 0xffffffff) { size2 = u64(cd, q); q += 8; }
+          if (compSize === 0xffffffff) { compSize = u64(cd, q); q += 8; }
+          if (offset === 0xffffffff) { offset = u64(cd, q); q += 8; }
+        }
+        e += 4 + len;
+      }
+      p = eEnd + commentLen;
+      const dir = name.endsWith('/');
+      files[name] = { name, dir, size: size2, compressedSize: compSize, method, encrypted: !!(flags & 1), offset };
+    }
+
+    // where the file's data starts: after its local header, whose name/extra lengths can differ
+    async function dataRange(f) {
+      const h = await bytes(blob, f.offset, f.offset + 30);
+      if (u32(h, 0) !== 0x04034b50) throw new Error(`Damaged zip entry: ${f.name}`);
+      const start = f.offset + 30 + u16(h, 26) + u16(h, 28);
+      return [start, start + f.compressedSize];
+    }
+    async function stream(f) {
+      if (f.encrypted) throw new Error(`${f.name} is password-protected.`);
+      const [a, b] = await dataRange(f);
+      const raw = blob.slice(a, b).stream();
+      if (f.method === 0) return raw;
+      if (f.method === 8) return raw.pipeThrough(new DecompressionStream('deflate-raw'));
+      throw new Error(`${f.name} uses a compression method this tool can't read (${f.method}).`);
+    }
+    async function readAll(f) {
+      if (f.size === 0) return new Uint8Array(0);
+      return new Uint8Array(await new Response(await stream(f)).arrayBuffer());
+    }
+    // just the first n bytes, without decompressing the rest
+    async function head(f, n) {
+      const reader = (await stream(f)).getReader();
+      const parts = []; let got = 0;
+      while (got < n) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        parts.push(value); got += value.length;
+      }
+      reader.cancel().catch(() => {});
+      const out = new Uint8Array(Math.min(got, n)); let o = 0;
+      for (const v of parts) { const take = Math.min(v.length, out.length - o); out.set(v.subarray(0, take), o); o += take; if (o >= out.length) break; }
+      return out;
+    }
+    const handle = f => ({
+      name: f.name, dir: f.dir, size: f.size,
+      async: async type => {
+        const data = await readAll(f);
+        if (type === 'string' || type === 'text') return utf8.decode(data);
+        if (type === 'uint8array') return data;
+        if (type === 'arraybuffer') return data.buffer;
+        if (type === 'blob') return new Blob([data]);
+        throw new Error(`Unsupported type ${type}`);
+      },
+      stream: () => stream(f),
+      head: n => head(f, n),
+    });
+    return {
+      size,
+      files,
+      file: name => (files[name] && !files[name].dir ? handle(files[name]) : null),
+    };
+  }
+  return { open, NotZipError };
+})();
+
+
+</script>
+<script>
 /* ===== Blackboard Ultra export converter: core engine =====
    Needs: JSZip and DOMParser. Runs entirely in the browser. */
 const BBConvert = (() => {
@@ -276,6 +402,7 @@ const BBConvert = (() => {
   const PAGE_W = 9026; // A4 text width in twips (1" margins)
 
   function makeDocx(htmlString, title, ctx) {
+    let cellStyle = '';
     // ctx: { readImage: path -> Uint8Array|null }
     const doc = new DOMParser().parseFromString(`<!DOCTYPE html><html><body>${htmlString}</body></html>`, 'text/html');
     const rels = [], media = [];
@@ -362,6 +489,7 @@ const BBConvert = (() => {
     function para(pieces, ppr = '') {
       const x = piecesXml(pieces);
       if (x === null) return '';
+      if (cellStyle && !ppr.includes('pStyle')) ppr = `<w:pStyle w:val="${cellStyle}"/>` + ppr;
       return `<w:p>${ppr ? `<w:pPr>${ppr}</w:pPr>` : ''}${x}</w:p>`;
     }
 
@@ -414,7 +542,9 @@ const BBConvert = (() => {
       const cw = Math.floor(PAGE_W / ncol);
       const wAttr = (el.getAttribute('data-widths') || '').split(',').map(Number).filter(n => n > 0);
       const colW = i => wAttr.length === ncol ? Math.floor(PAGE_W * wAttr[i] / wAttr.reduce((a, b) => a + b, 0)) : cw;
-      let x = `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="${cw * ncol}" w:type="dxa"/><w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr><w:tblGrid>${Array.from({ length: ncol }, (_, i) => `<w:gridCol w:w="${colW(i)}"/>`).join('')}</w:tblGrid>`;
+      const fixed = wAttr.length === ncol;
+      const prevCell = cellStyle; if (fixed) cellStyle = 'TableText';
+      let x = `<w:tbl><w:tblPr><w:tblStyle w:val="TableGrid"/><w:tblW w:w="${fixed ? Array.from({ length: ncol }, (_, i) => colW(i)).reduce((a, b) => a + b, 0) : cw * ncol}" w:type="dxa"/>${fixed ? '<w:tblLayout w:type="fixed"/>' : ''}<w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/></w:tblPr><w:tblGrid>${Array.from({ length: ncol }, (_, i) => `<w:gridCol w:w="${colW(i)}"/>`).join('')}</w:tblGrid>`;
       rows.forEach((r, ri) => {
         const cells = [...r.children].filter(c => /^T[DH]$/.test(c.tagName));
         const isHead = ri === 0 && (cells.every(c => c.tagName === 'TH') || r.closest('thead'));
@@ -431,6 +561,7 @@ const BBConvert = (() => {
         for (; used < ncol; used++) x += `<w:tc><w:tcPr><w:tcW w:w="${colW(used)}" w:type="dxa"/></w:tcPr><w:p/></w:tc>`;
         x += '</w:tr>';
       });
+      cellStyle = prevCell;
       return x + '</w:tbl><w:p/>';
     }
 
@@ -446,7 +577,7 @@ const BBConvert = (() => {
     zip.file('docProps/core.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${escXml(title)}</dc:title><dc:language>en-GB</dc:language></cp:coreProperties>`);
     zip.file('word/_rels/document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>${rels.join('')}</Relationships>`);
     zip.file('word/settings.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:defaultTabStop w:val="720"/><w:characterSpacingControl w:val="doNotCompress"/></w:settings>`);
-    zip.file('word/styles.xml', STYLES);
+    zip.file('word/styles.xml', ctx.accent ? STYLES.replace(/154734/g, ctx.accent) : STYLES);
     zip.file('word/numbering.xml', numbering(nums));
     zip.file('word/document.xml', docXml);
     media.forEach(m => zip.file(`word/media/${m.name}`, m.data));
@@ -464,7 +595,7 @@ const BBConvert = (() => {
   }
 
   const hStyle = (n, sz, extra = '') => `<w:style w:type="paragraph" w:styleId="Heading${n}"><w:name w:val="heading ${n}"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:uiPriority w:val="9"/><w:qFormat/><w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="${n <= 2 ? 360 : 240}" w:after="120"/><w:outlineLvl w:val="${n - 1}"/></w:pPr><w:rPr><w:b/>${extra}<w:color w:val="154734"/><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr></w:style>`;
-  const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Arial" w:cs="Arial"/><w:sz w:val="24"/><w:szCs w:val="24"/><w:lang w:val="en-GB" w:eastAsia="en-GB" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="160" w:line="300" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/><w:rPr><w:color w:val="1A1A1A"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="12" w:space="6" w:color="154734"/></w:pBdr><w:spacing w:after="240"/></w:pPr><w:rPr><w:b/><w:color w:val="154734"/><w:sz w:val="44"/><w:szCs w:val="44"/></w:rPr></w:style>${hStyle(1, 36)}${hStyle(2, 30)}${hStyle(3, 27)}${hStyle(4, 25)}${hStyle(5, 24)}${hStyle(6, 24, '<w:i/>')}<w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="80"/><w:ind w:left="720"/><w:contextualSpacing/></w:pPr></w:style><w:style w:type="character" w:default="1" w:styleId="DefaultParagraphFont"><w:name w:val="Default Paragraph Font"/><w:uiPriority w:val="1"/><w:semiHidden/></w:style><w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:rPr><w:color w:val="004F71"/><w:u w:val="single"/></w:rPr></w:style><w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:semiHidden/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style><w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/><w:basedOn w:val="TableNormal"/><w:pPr><w:spacing w:before="60" w:after="60" w:line="240" w:lineRule="auto"/></w:pPr><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:left w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:right w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="808080"/></w:tblBorders><w:tblCellMar><w:top w:w="60" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style></w:styles>`;
+  const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Arial" w:cs="Arial"/><w:sz w:val="24"/><w:szCs w:val="24"/><w:lang w:val="en-GB" w:eastAsia="en-GB" w:bidi="ar-SA"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="160" w:line="300" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/><w:rPr><w:color w:val="1A1A1A"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="12" w:space="6" w:color="154734"/></w:pBdr><w:spacing w:after="240"/></w:pPr><w:rPr><w:b/><w:color w:val="154734"/><w:sz w:val="44"/><w:szCs w:val="44"/></w:rPr></w:style>${hStyle(1, 36)}${hStyle(2, 30)}${hStyle(3, 27)}${hStyle(4, 25)}${hStyle(5, 24)}${hStyle(6, 24, '<w:i/>')}<w:style w:type="paragraph" w:styleId="TableText"><w:name w:val="Table Text"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:before="0" w:after="60" w:line="264" w:lineRule="auto"/></w:pPr><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr></w:style><w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:basedOn w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="80"/><w:ind w:left="720"/><w:contextualSpacing/></w:pPr></w:style><w:style w:type="character" w:default="1" w:styleId="DefaultParagraphFont"><w:name w:val="Default Paragraph Font"/><w:uiPriority w:val="1"/><w:semiHidden/></w:style><w:style w:type="character" w:styleId="Hyperlink"><w:name w:val="Hyperlink"/><w:rPr><w:color w:val="004F71"/><w:u w:val="single"/></w:rPr></w:style><w:style w:type="table" w:default="1" w:styleId="TableNormal"><w:name w:val="Normal Table"/><w:semiHidden/><w:tblPr><w:tblInd w:w="0" w:type="dxa"/><w:tblCellMar><w:top w:w="0" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="0" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style><w:style w:type="table" w:styleId="TableGrid"><w:name w:val="Table Grid"/><w:basedOn w:val="TableNormal"/><w:pPr><w:spacing w:before="60" w:after="60" w:line="240" w:lineRule="auto"/></w:pPr><w:tblPr><w:tblBorders><w:top w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:left w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:bottom w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:right w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:insideH w:val="single" w:sz="4" w:space="0" w:color="808080"/><w:insideV w:val="single" w:sz="4" w:space="0" w:color="808080"/></w:tblBorders><w:tblCellMar><w:top w:w="60" w:type="dxa"/><w:left w:w="108" w:type="dxa"/><w:bottom w:w="60" w:type="dxa"/><w:right w:w="108" w:type="dxa"/></w:tblCellMar></w:tblPr></w:style></w:styles>`;
 
   /* ---------------- Blackboard parsing ---------------- */
   async function convert(zip, opts = {}) {
@@ -591,7 +722,10 @@ const BBConvert = (() => {
           if (!box) { a.remove(); continue; }
           const host = a.closest('h1,h2,h3,h4,h5,h6,p');
           const frag = doc.createDocumentFragment();
-          while (box.firstChild) frag.appendChild(box.firstChild);
+          // in analyse mode, mark HTML block content so the checks can treat it differently
+          const target = analyse ? frag.appendChild(Object.assign(doc.createElement('div'), { className: 'bb-htmlblock' })) : frag;
+          if (analyse) target.setAttribute('data-htmlblock', '1');
+          while (box.firstChild) target.appendChild(box.firstChild);
           if (host) { host.after(frag); a.remove(); } else a.replaceWith(frag);
           continue;
         }
@@ -601,7 +735,7 @@ const BBConvert = (() => {
           if (!info.displayName && info.linkName) info.displayName = info.linkName;
           if (IMG_EXT.test(nm)) { placeBlock(a, mk(`<p><img data-zip="${escHtml(XID[x].path)}" alt="${escHtml(info.alternativeText || '')}"></p>`)); continue; }
           const saved = folderFiles.add(x);
-          placeBlock(a, mk(`<p><strong>Attached file:</strong> ${escHtml(info.displayName || nm)}, saved in this folder as <em>${escHtml(saved)}</em></p>`));
+          placeBlock(a, mk(`<p${analyse ? ` data-file="${escHtml(XID[x].path)}" data-name="${escHtml(nm)}"` : ''}><strong>Attached file:</strong> ${escHtml(info.displayName || nm)}, saved in this folder as <em>${escHtml(saved)}</em></p>`));
           continue;
         }
         if (bt === 'video') {
@@ -689,7 +823,7 @@ const BBConvert = (() => {
         const x = m[1];
         if (XID[x] && !folderFiles.has(x) && !/^UNSAFE_HTML/.test(XID[x].name) && !IMG_EXT.test(XID[x].name) && !bodyHtml.includes(`xid-${x}`)) {
           const saved = folderFiles.add(x);
-          parts.push(`<p><strong>Attached file:</strong> saved in this folder as <em>${escHtml(saved)}</em></p>`);
+          parts.push(`<p${analyse ? ` data-file="${escHtml(XID[x].path)}" data-name="${escHtml(XID[x].name)}"` : ''}><strong>Attached file:</strong> saved in this folder as <em>${escHtml(saved)}</em></p>`);
         }
       }
       const low = raw.toLowerCase();
@@ -763,7 +897,14 @@ const BBConvert = (() => {
     if (analyse) {
       return { code, title, short, courseId, pages, skippedStaff, includeStaff, hiddenCount: warnings.hidden,
         missingImages: warnings.missingImages, interactive: warnings.interactive, sectionTitles: sections.map(x => x.title),
-        readBytes: async (path, max) => { const f = zip.file(path); if (!f) return null; const b = await f.async('uint8array'); return max ? b.subarray(0, max) : b; } };
+        // small files are read whole; for large ones only the first `max` bytes are read
+        readBytes: async (path, max) => {
+          const f = zip.file(path); if (!f) return null;
+          const size = (zip.files[path] || {}).size || 0;
+          if (max && size > max && f.head) return f.head(max);
+          const b = await f.async('uint8array'); return max ? b.subarray(0, max) : b;
+        },
+        sizeOf: path => (zip.files[path] || {}).size || 0 };
     }
 
     // start-here guide
@@ -804,12 +945,17 @@ const BBConvert = (() => {
       code, title, short, root: ROOT, sections, skippedStaff, includeStaff,
       hiddenCount: warnings.hidden, oldYears, missingImages: warnings.missingImages, interactive: warnings.interactive,
       files, // {path, data (Uint8Array)} or {path, zipPath}
-      async getBytes(f) { return f.data || zip.file(f.zipPath).async('uint8array'); }
+      async getBytes(f) { return f.data || zip.file(f.zipPath).async('uint8array'); },
+      // a stream of the file's bytes, so large files can be copied without holding them in memory
+      async getStream(f) { if (f.data) return new Blob([f.data]).stream(); const z = zip.file(f.zipPath); return z.stream ? z.stream() : new Blob([await z.async('uint8array')]).stream(); },
+      sizeOf(f) { return f.data ? f.data.length : ((zip.files[f.zipPath] || {}).size || (zip.files[f.zipPath] && zip.files[f.zipPath]._data && zip.files[f.zipPath]._data.uncompressedSize) || 0); }
     };
   }
 
   return { convert, makeDocx, safe };
 })();
+
+
 
 
 </script>
@@ -820,6 +966,8 @@ const BBConvert = (() => {
   let currentFile = null, result = null, busy = false;
   const canPickFolder = typeof window.showDirectoryPicker === 'function';
   const canPickSave = typeof window.showSaveFilePicker === 'function';
+  // a zip is built in the browser's memory, so it's only offered when the output is small enough
+  const ZIP_LIMIT = 1.5e9;
 
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
   const fmtSize = b => b > 1e9 ? (b / 1e9).toFixed(1) + ' GB' : b > 1e6 ? Math.round(b / 1e6) + ' MB' : Math.max(1, Math.round(b / 1e3)) + ' KB';
@@ -857,15 +1005,17 @@ const BBConvert = (() => {
     $('chosen').textContent = `${file.name} (${fmtSize(file.size)})`;
     $('chooseBtn').disabled = true;
     try {
+      if (typeof DecompressionStream === 'undefined') throw new Error('This browser is too old to read course exports. Please update it, or use a recent version of Chrome, Edge, Firefox or Safari.');
       if (!/\.zip$/i.test(file.name)) throw new Error('NOTZIP');
       progress(1, 'Opening the export', 0.01);
       let zip;
-      try { zip = await JSZip.loadAsync(file); } catch (e) { throw new Error('NOTZIP'); }
+      try { zip = await BBZip.open(file); }
+      catch (e) { if (e.name === 'NotZipError') { const err = new Error('NOTZIP'); err.detail = e.message; throw err; } throw e; }
       result = await BBConvert.convert(zip, {
         includeStaff: $('staff').checked,
         onProgress: (t, f) => progress(1, t, f)
       });
-      result.sizeEstimate = result.files.reduce((a, f) => a + (f.data ? f.data.length : ((zip.files[f.zipPath] && zip.files[f.zipPath]._data && zip.files[f.zipPath]._data.uncompressedSize) || 0)), 0);
+      result.sizeEstimate = result.files.reduce((a, f) => a + result.sizeOf(f), 0);
       $('prog').hidden = true;
       $('chosen').textContent = `${file.name} (${fmtSize(file.size)}) converted.`;
       renderReview();
@@ -874,7 +1024,7 @@ const BBConvert = (() => {
     } catch (e) {
       console.error(e);
       $('prog').hidden = true;
-      if (e.message === 'NOTZIP') showError('err1', "This file can't be opened as a zip.", 'Choose the .zip file you downloaded from Learn, without unzipping or renaming it.');
+      if (e.message === 'NOTZIP') showError('err1', "This file can't be opened as a zip.", (e.detail ? e.detail + ' ' : '') + 'Choose the .zip file you downloaded from Learn, without unzipping or renaming it. If the download was interrupted, download it again.');
       else showError('err1', "This export couldn't be converted.", e.message || String(e));
       setStep(1);
     } finally {
@@ -914,14 +1064,22 @@ const BBConvert = (() => {
     const first = $('tree').querySelector('details');
     if (first) first.open = true;
 
-    $('saveIntro').textContent = canPickFolder
-      ? `Choose where to save. A folder called "${r.root}" is created there, with everything shown above inside it.`
-      : `Your browser will save a zip file called "${r.root}.zip". Unzip it wherever you want the files.`;
+    const zipOk = r.sizeEstimate <= ZIP_LIMIT;
     $('saveFolder').hidden = !canPickFolder;
+    $('saveZip').hidden = !zipOk;
     $('saveZip').classList.toggle('secondary', canPickFolder);
-    $('saveHint').textContent = canPickFolder
-      ? 'A zip is handy for emailing the files or putting them on a shared drive.'
-      : 'Saving straight into a folder works in Chrome and Edge.';
+    if (canPickFolder) {
+      $('saveIntro').textContent = `Choose where to save. A folder called "${r.root}" is created there, with everything shown above inside it.`;
+      $('saveHint').textContent = zipOk
+        ? 'A zip is handy for emailing the files or putting them on a shared drive.'
+        : `At about ${fmtSize(r.sizeEstimate)}, this is too large to build as a zip in the browser, so save it to a folder. You can zip the folder afterwards if you need to.`;
+    } else if (zipOk) {
+      $('saveIntro').textContent = `Your browser will save a zip file called "${r.root}.zip". Unzip it wherever you want the files.`;
+      $('saveHint').textContent = 'Saving straight into a folder works in Chrome and Edge.';
+    } else {
+      $('saveIntro').textContent = `At about ${fmtSize(r.sizeEstimate)}, this course is too large to save as a zip in this browser.`;
+      $('saveHint').textContent = 'Open this tool in Chrome or Edge, which can save large courses straight into a folder on your computer.';
+    }
   }
 
   async function guard(fn) {
@@ -956,22 +1114,33 @@ const BBConvert = (() => {
       return d;
     };
     const files = result.files;
+    const total = Math.max(1, files.reduce((a, f) => a + result.sizeOf(f), 0));
+    let doneBytes = 0;
     for (let n = 0; n < files.length; n++) {
       const f = files[n];
       const parts = f.path.split('/'); parts[0] = rootName;
       const name = parts.pop();
-      progress(3, `Saving ${name}`, n / files.length);
+      const size = result.sizeOf(f);
+      progress(3, `Saving ${name}`, doneBytes / total);
       const dir = await getDir(parts);
       const fh = await dir.getFileHandle(name, { create: true });
       const w = await fh.createWritable();
-      await w.write(await result.getBytes(f));
-      await w.close();
+      // copied in chunks, so even very large files never have to fit in memory
+      let copied = 0, lastShown = 0;
+      const counter = new TransformStream({ transform(chunk, ctl) {
+        copied += chunk.length;
+        if (size > 50e6 && copied - lastShown > 20e6) { lastShown = copied; progress(3, `Saving ${name} (${fmtSize(copied)} of ${fmtSize(size)})`, (doneBytes + copied) / total); }
+        ctl.enqueue(chunk);
+      } });
+      await (await result.getStream(f)).pipeThrough(counter).pipeTo(w);
+      doneBytes += size;
     }
     progress(3, 'Saved', 1);
     finished(`Saved ${plural(files.length, "file")} into a new folder called "${rootName}"${parent.name ? ` in ${parent.name}` : ""}.`);
   }));
 
   $('saveZip').addEventListener('click', () => guard(async () => {
+    if (result.sizeEstimate > ZIP_LIMIT) throw new Error('This course is too large to save as a zip in the browser. Save it to a folder instead.');
     let handle = null;
     if (canPickSave) {
       handle = await window.showSaveFilePicker({ id: 'bb-export-converter-zip', suggestedName: `${result.root}.zip`, types: [{ description: 'Zip file', accept: { 'application/zip': ['.zip'] } }] });
