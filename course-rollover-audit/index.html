@@ -262,6 +262,132 @@ mark { background: var(--mark); color: var(--mark-ink); padding: 0 .12em; border
 </div>
 
 <script>
+/* ===== BBZip: read a zip file in pieces, straight from disk =====
+   Reads only the zip's index (central directory) up front, then reads each file on demand
+   with File.slice(), so the size of the zip doesn't matter. Supports ZIP64 (zips over 4GB
+   or with very large files), stored and deflated entries.
+   Same shape as the parts of JSZip the tools use: zip.files, zip.file(name).async(type),
+   plus .stream() and .size for copying large files without holding them in memory. */
+const BBZip = (() => {
+  const u16 = (b, o) => b[o] | (b[o + 1] << 8);
+  const u32 = (b, o) => (b[o] | (b[o + 1] << 8) | (b[o + 2] << 16) | (b[o + 3] << 24)) >>> 0;
+  const u64 = (b, o) => u32(b, o) + u32(b, o + 4) * 0x100000000;
+  const bytes = async (blob, start, end) => new Uint8Array(await blob.slice(start, end).arrayBuffer());
+  const utf8 = new TextDecoder('utf-8');
+  // names without the UTF-8 flag are CP437; Blackboard's are ASCII in practice, so decode leniently
+  const latin = new TextDecoder('latin1');
+
+  class NotZipError extends Error { constructor(m) { super(m); this.name = 'NotZipError'; } }
+
+  async function open(blob) {
+    const size = blob.size;
+    if (size < 22) throw new NotZipError('Too small to be a zip file.');
+    // end of central directory: in the last 22 bytes + up to 64KB of comment
+    const tailStart = Math.max(0, size - 22 - 65535);
+    const tail = await bytes(blob, tailStart, size);
+    let eocd = -1;
+    for (let i = tail.length - 22; i >= 0; i--) if (u32(tail, i) === 0x06054b50) { eocd = i; break; }
+    if (eocd < 0) throw new NotZipError('The end of the file, where a zip keeps its list of contents, is missing, so it may not be a zip or the download may be incomplete.');
+    let count = u16(tail, eocd + 10), cdSize = u32(tail, eocd + 12), cdOffset = u32(tail, eocd + 16);
+    // ZIP64: the locator sits just before the end record
+    if (count === 0xffff || cdSize === 0xffffffff || cdOffset === 0xffffffff) {
+      const locAbs = tailStart + eocd - 20;
+      const loc = await bytes(blob, locAbs, locAbs + 20);
+      if (u32(loc, 0) !== 0x07064b50) throw new NotZipError('ZIP64 locator missing.');
+      const recAbs = u64(loc, 8);
+      const rec = await bytes(blob, recAbs, recAbs + 56);
+      if (u32(rec, 0) !== 0x06064b50) throw new NotZipError('ZIP64 end record missing.');
+      count = u64(rec, 32); cdSize = u64(rec, 40); cdOffset = u64(rec, 48);
+    }
+    if (cdOffset + cdSize > size) throw new NotZipError('The zip directory points past the end of the file. The download may be incomplete.');
+    const cd = await bytes(blob, cdOffset, cdOffset + cdSize);
+
+    const files = Object.create(null);
+    let p = 0;
+    for (let n = 0; n < count; n++) {
+      if (u32(cd, p) !== 0x02014b50) throw new NotZipError('Damaged zip directory.');
+      const flags = u16(cd, p + 8), method = u16(cd, p + 10);
+      let compSize = u32(cd, p + 20), size2 = u32(cd, p + 24);
+      const nameLen = u16(cd, p + 28), extraLen = u16(cd, p + 30), commentLen = u16(cd, p + 32);
+      let offset = u32(cd, p + 42);
+      const nameBytes = cd.subarray(p + 46, p + 46 + nameLen);
+      const name = (flags & 0x800 ? utf8 : (nameBytes.every(b => b < 0x80) ? utf8 : latin)).decode(nameBytes);
+      // ZIP64 extra field holds the real values for any field set to 0xFFFFFFFF, in this order
+      let e = p + 46 + nameLen;
+      const eEnd = e + extraLen;
+      while (e + 4 <= eEnd) {
+        const id = u16(cd, e), len = u16(cd, e + 2);
+        if (id === 0x0001) {
+          let q = e + 4;
+          if (size2 === 0xffffffff) { size2 = u64(cd, q); q += 8; }
+          if (compSize === 0xffffffff) { compSize = u64(cd, q); q += 8; }
+          if (offset === 0xffffffff) { offset = u64(cd, q); q += 8; }
+        }
+        e += 4 + len;
+      }
+      p = eEnd + commentLen;
+      const dir = name.endsWith('/');
+      files[name] = { name, dir, size: size2, compressedSize: compSize, method, encrypted: !!(flags & 1), offset };
+    }
+
+    // where the file's data starts: after its local header, whose name/extra lengths can differ
+    async function dataRange(f) {
+      const h = await bytes(blob, f.offset, f.offset + 30);
+      if (u32(h, 0) !== 0x04034b50) throw new Error(`Damaged zip entry: ${f.name}`);
+      const start = f.offset + 30 + u16(h, 26) + u16(h, 28);
+      return [start, start + f.compressedSize];
+    }
+    async function stream(f) {
+      if (f.encrypted) throw new Error(`${f.name} is password-protected.`);
+      const [a, b] = await dataRange(f);
+      const raw = blob.slice(a, b).stream();
+      if (f.method === 0) return raw;
+      if (f.method === 8) return raw.pipeThrough(new DecompressionStream('deflate-raw'));
+      throw new Error(`${f.name} uses a compression method this tool can't read (${f.method}).`);
+    }
+    async function readAll(f) {
+      if (f.size === 0) return new Uint8Array(0);
+      return new Uint8Array(await new Response(await stream(f)).arrayBuffer());
+    }
+    // just the first n bytes, without decompressing the rest
+    async function head(f, n) {
+      const reader = (await stream(f)).getReader();
+      const parts = []; let got = 0;
+      while (got < n) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        parts.push(value); got += value.length;
+      }
+      reader.cancel().catch(() => {});
+      const out = new Uint8Array(Math.min(got, n)); let o = 0;
+      for (const v of parts) { const take = Math.min(v.length, out.length - o); out.set(v.subarray(0, take), o); o += take; if (o >= out.length) break; }
+      return out;
+    }
+    const handle = f => ({
+      name: f.name, dir: f.dir, size: f.size,
+      async: async type => {
+        const data = await readAll(f);
+        if (type === 'string' || type === 'text') return utf8.decode(data);
+        if (type === 'uint8array') return data;
+        if (type === 'arraybuffer') return data.buffer;
+        if (type === 'blob') return new Blob([data]);
+        throw new Error(`Unsupported type ${type}`);
+      },
+      stream: () => stream(f),
+      head: n => head(f, n),
+    });
+    return {
+      size,
+      files,
+      file: name => (files[name] && !files[name].dir ? handle(files[name]) : null),
+    };
+  }
+  return { open, NotZipError };
+})();
+
+
+</script>
+<script>
 /* ===== Blackboard Ultra export converter: core engine =====
    Needs: JSZip and DOMParser. Runs entirely in the browser. */
 const BBConvert = (() => {
@@ -639,7 +765,7 @@ const BBConvert = (() => {
           if (!info.displayName && info.linkName) info.displayName = info.linkName;
           if (IMG_EXT.test(nm)) { placeBlock(a, mk(`<p><img data-zip="${escHtml(XID[x].path)}" alt="${escHtml(info.alternativeText || '')}"></p>`)); continue; }
           const saved = folderFiles.add(x);
-          placeBlock(a, mk(`<p data-file="${escHtml(XID[x].path)}" data-name="${escHtml(nm)}"><strong>Attached file:</strong> ${escHtml(info.displayName || nm)}, saved in this folder as <em>${escHtml(saved)}</em></p>`));
+          placeBlock(a, mk(`<p${analyse ? ` data-file="${escHtml(XID[x].path)}" data-name="${escHtml(nm)}"` : ''}><strong>Attached file:</strong> ${escHtml(info.displayName || nm)}, saved in this folder as <em>${escHtml(saved)}</em></p>`));
           continue;
         }
         if (bt === 'video') {
@@ -727,7 +853,7 @@ const BBConvert = (() => {
         const x = m[1];
         if (XID[x] && !folderFiles.has(x) && !/^UNSAFE_HTML/.test(XID[x].name) && !IMG_EXT.test(XID[x].name) && !bodyHtml.includes(`xid-${x}`)) {
           const saved = folderFiles.add(x);
-          parts.push(`<p data-file="${escHtml(XID[x].path)}" data-name="${escHtml(XID[x].name)}"><strong>Attached file:</strong> saved in this folder as <em>${escHtml(saved)}</em></p>`);
+          parts.push(`<p${analyse ? ` data-file="${escHtml(XID[x].path)}" data-name="${escHtml(XID[x].name)}"` : ''}><strong>Attached file:</strong> saved in this folder as <em>${escHtml(saved)}</em></p>`);
         }
       }
       const low = raw.toLowerCase();
@@ -801,7 +927,14 @@ const BBConvert = (() => {
     if (analyse) {
       return { code, title, short, courseId, pages, skippedStaff, includeStaff, hiddenCount: warnings.hidden,
         missingImages: warnings.missingImages, interactive: warnings.interactive, sectionTitles: sections.map(x => x.title),
-        readBytes: async (path, max) => { const f = zip.file(path); if (!f) return null; const b = await f.async('uint8array'); return max ? b.subarray(0, max) : b; } };
+        // small files are read whole; for large ones only the first `max` bytes are read
+        readBytes: async (path, max) => {
+          const f = zip.file(path); if (!f) return null;
+          const size = (zip.files[path] || {}).size || 0;
+          if (max && size > max && f.head) return f.head(max);
+          const b = await f.async('uint8array'); return max ? b.subarray(0, max) : b;
+        },
+        sizeOf: path => (zip.files[path] || {}).size || 0 };
     }
 
     // start-here guide
@@ -842,7 +975,10 @@ const BBConvert = (() => {
       code, title, short, root: ROOT, sections, skippedStaff, includeStaff,
       hiddenCount: warnings.hidden, oldYears, missingImages: warnings.missingImages, interactive: warnings.interactive,
       files, // {path, data (Uint8Array)} or {path, zipPath}
-      async getBytes(f) { return f.data || zip.file(f.zipPath).async('uint8array'); }
+      async getBytes(f) { return f.data || zip.file(f.zipPath).async('uint8array'); },
+      // a stream of the file's bytes, so large files can be copied without holding them in memory
+      async getStream(f) { if (f.data) return new Blob([f.data]).stream(); const z = zip.file(f.zipPath); return z.stream ? z.stream() : new Blob([await z.async('uint8array')]).stream(); },
+      sizeOf(f) { return f.data ? f.data.length : ((zip.files[f.zipPath] || {}).size || (zip.files[f.zipPath] && zip.files[f.zipPath]._data && zip.files[f.zipPath]._data.uncompressedSize) || 0); }
     };
   }
 
@@ -1427,7 +1563,9 @@ const BBCheck = (() => {
       // published journal articles attached as PDFs, wherever they are
       for (const f of page.files) {
         if (flaggedFiles.has(f.path) || !/\.pdf$/i.test(f.name) || page.resourceList) continue;
-        const b = await res.readBytes(f.path);
+        // whole PDF when it's up to 30MB (the DOI can be at either end); otherwise just the first 2MB
+        const big = res.sizeOf && res.sizeOf(f.path) > 30e6;
+        const b = await res.readBytes(f.path, big ? 2e6 : 0);
         if (!b) continue;
         const n = b.length;
         const str = new TextDecoder('latin1').decode(b.subarray(0, Math.min(n, 400000))) + new TextDecoder('latin1').decode(b.subarray(Math.max(0, n - 150000)));
@@ -1525,10 +1663,12 @@ const BBCheck = (() => {
     $('chosen').hidden = false; $('chosen').textContent = `${file.name} (${fmtSize(file.size)})`;
     $('chooseBtn').disabled = true;
     try {
+      if (typeof DecompressionStream === 'undefined') throw new Error('This browser is too old to read course exports. Please update it, or use a recent version of Chrome, Edge, Firefox or Safari.');
       if (!/\.zip$/i.test(file.name)) throw new Error('NOTZIP');
       progress('Opening the export', 0.02);
       let zip;
-      try { zip = await JSZip.loadAsync(file); } catch (e) { throw new Error('NOTZIP'); }
+      try { zip = await BBZip.open(file); }
+      catch (e) { if (e.name === 'NotZipError') { const err = new Error('NOTZIP'); err.detail = e.message; throw err; } throw e; }
       result = await BBConvert.convert(zip, { analyse: true, includeStaff: true, onProgress: (t, f) => progress(t.replace(/^Converting/, 'Reading'), Math.min(0.85, f)) });
       progress('Running the checks', 0.9);
       cats = await BBCheck.run(result, { includeTemplate: $('template').checked });
@@ -1540,7 +1680,7 @@ const BBCheck = (() => {
     } catch (e) {
       console.error(e);
       $('prog').hidden = true;
-      if (e.message === 'NOTZIP') showError('err1', "This file can't be opened as a zip.", 'Choose the .zip file you downloaded from Learn, without unzipping or renaming it.');
+      if (e.message === 'NOTZIP') showError('err1', "This file can't be opened as a zip.", (e.detail ? e.detail + ' ' : '') + 'Choose the .zip file you downloaded from Learn, without unzipping or renaming it. If the download was interrupted, download it again.');
       else showError('err1', "This export couldn't be checked.", e.message || String(e));
       setStep(1);
     } finally { busy = false; $('chooseBtn').disabled = false; fileInput.value = ''; }
