@@ -55,16 +55,32 @@
       color: var(--text-dim);
       font-family: 'Inter', system-ui, sans-serif;
       min-height: 100vh;
-      padding: 24px 20px 40px;
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 18px 20px 32px;
       transition: background 0.2s, color 0.2s;
     }
+
+    /* ── Back link ── */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--accent);
+      text-decoration: none;
+      margin-bottom: 10px;
+    }
+    .back-link:hover, .back-link:focus-visible { text-decoration: underline; }
 
     /* ── App header ── */
     .app-header {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 10px;
-      margin-bottom: 18px;
+      margin-bottom: 14px;
     }
     .app-header-bar {
       width: 3px; height: 22px;
@@ -134,9 +150,27 @@
       background: var(--preview-bg);
       border-radius: var(--radius);
       padding: 10px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
       border: 1px solid var(--border);
       transition: background 0.2s;
+    }
+    /* Preview is shown at half actual size (960 x 160) — the PNG export is still 1920 x 320 */
+    .preview-inner {
+      max-width: 960px;
+      margin: 0 auto;
+    }
+    .preview-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      max-width: 960px;
+      margin: 8px auto 0;
+    }
+    .preview-note {
+      font-size: 11px;
+      color: var(--text-muted);
     }
     #bm-canvas {
       width: 100%;
@@ -145,18 +179,20 @@
       border-radius: 4px;
     }
     #font-status {
-      text-align: center;
       font-size: 11px;
       color: var(--text-muted);
-      margin-top: 8px;
     }
 
     /* ── Layout ── */
     .grid-2 {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 12px;
       margin-bottom: 12px;
+    }
+    @media (max-width: 1000px) {
+      .grid-2 { grid-template-columns: 1fr 1fr; }
+      .grid-2 > .panel-bg { grid-column: 1 / -1; }
     }
     .grid-2 > .panel {
       min-width: 0; /* let grid tracks shrink below content's natural width — without this, a long unbroken string (e.g. an uploaded filename) stretches the whole column instead of truncating */
@@ -170,7 +206,7 @@
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 16px 18px;
+      padding: 14px 16px;
       transition: background 0.2s, border-color 0.2s;
     }
     .section-label {
@@ -183,8 +219,8 @@
       margin-bottom: 14px;
     }
     .sub-divider {
-      margin-top: 16px;
-      padding-top: 16px;
+      margin-top: 12px;
+      padding-top: 12px;
       border-top: 1px solid var(--border);
     }
 
@@ -210,7 +246,7 @@
     [data-theme="dark"] .upload-label.loaded { color: #61BF1A; border-color: #61BF1A55; }
 
     /* ── Sliders ── */
-    .slider-row { margin-bottom: 14px; }
+    .slider-row { margin-bottom: 12px; }
     .slider-top {
       display: flex;
       justify-content: space-between;
@@ -280,10 +316,10 @@
     .swatches {
       display: flex;
       flex-wrap: wrap;
-      gap: 7px;
+      gap: 6px;
     }
     .swatch {
-      width: 26px; height: 26px;
+      width: 24px; height: 24px;
       border-radius: 50%;
       cursor: pointer;
       flex-shrink: 0;
@@ -403,8 +439,7 @@
     .flip-row {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      margin-bottom: 14px;
+      gap: 10px;
     }
     .flip-label {
       font-size: 12px;
@@ -461,6 +496,8 @@
 </head>
 <body>
 
+  <a class="back-link" href="../">&larr; Back to all tools</a>
+
   <header class="app-header">
     <div class="app-header-bar"></div>
     <h1>LEARN Doc Header Maker</h1>
@@ -474,13 +511,16 @@
   </header>
 
   <div class="preview-wrap">
-    <canvas id="bm-canvas"></canvas>
-    <div id="font-status">Loading font&hellip;</div>
-  </div>
-
-  <div class="panel flip-row" style="margin-bottom:12px;">
-    <span class="flip-label">&#8646; Flip layout (swap image / text sides)</span>
-    <div class="flip-switch" id="flip-switch"></div>
+    <div class="preview-inner">
+      <canvas id="bm-canvas"></canvas>
+    </div>
+    <div class="preview-footer">
+      <span class="preview-note"><span id="font-status">Loading font&hellip; </span>Preview shown at half size &middot; download is full size</span>
+      <div class="flip-row">
+        <span class="flip-label">&#8646; Flip layout</span>
+        <div class="flip-switch" id="flip-switch" title="Swap image and text sides"></div>
+      </div>
+    </div>
   </div>
 
   <div class="grid-2">
@@ -552,14 +592,14 @@
       </div>
     </div>
 
-  </div>
+    <!-- Background -->
+    <div class="panel panel-bg">
+      <span class="section-label">Background</span>
+      <div class="mode-toggle-row" id="mode-toggle-row"></div>
+      <p class="mode-hint" id="mode-hint"></p>
+      <div class="bg-row" id="bg-row"></div>
+    </div>
 
-  <!-- Background -->
-  <div class="panel" style="margin-bottom:12px;">
-    <span class="section-label">Background</span>
-    <div class="mode-toggle-row" id="mode-toggle-row"></div>
-    <p class="mode-hint" id="mode-hint"></p>
-    <div class="bg-row" id="bg-row"></div>
   </div>
 
   <button class="btn-download" id="btn-download">
@@ -761,7 +801,8 @@
       updateContrastBadges();
       if (!state.fontReady) return;
       const w = canvas.parentElement ? canvas.parentElement.clientWidth : 960;
-      drawToCanvas(canvas, w / CW, true);
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      drawToCanvas(canvas, (w * dpr) / CW, true);
     }
 
     /* ── Settings persistence (localStorage) ── */
