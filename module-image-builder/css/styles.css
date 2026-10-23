@@ -84,3 +84,11 @@ canvas { display: block; width: 100%; height: auto; border-radius: 14px; backgro
 .optional { font-weight: 400; color: var(--muted); }
 .filename { font-size: .85rem; overflow-wrap: anywhere; }
 .filename code { color: var(--ink); background: #f1f3f6; border-radius: 6px; padding: 2px 6px; }
+
+/* Icon credits */
+.credits { margin-top: 18px; }
+.credits h2 { margin-bottom: 10px; }
+.credits ul { margin: 0 0 12px; padding-left: 1.2rem; color: var(--muted); line-height: 1.6; font-size: .92rem; }
+.credits strong { color: var(--ink); }
+.credits a { color: var(--focus); font-weight: 700; text-underline-offset: 2px; }
+.credits a:hover, .credits a:focus-visible { color: var(--accent); }
