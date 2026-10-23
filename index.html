@@ -45,7 +45,7 @@
       overflow: hidden;
     }
     .hero-inner {
-      max-width: 960px;
+      max-width: 1200px;
       margin: 0 auto;
       padding: 42px 28px 38px;
     }
@@ -112,7 +112,7 @@
 
     /* ── Main ── */
     .main {
-      max-width: 960px;
+      max-width: 1200px;
       margin: 0 auto;
       padding: 44px 28px 60px;
     }
@@ -141,6 +141,7 @@
       border-radius: 10px;
     }
     .section-intro {
+      max-width: 75ch;
       font-size: 14px;
       color: var(--text-muted);
       margin-bottom: 22px;
@@ -439,6 +440,7 @@
       color: var(--blue);
     }
     .subsection-intro {
+      max-width: 75ch;
       font-size: 13.5px;
       color: var(--text-muted);
       margin-bottom: 16px;
@@ -510,52 +512,41 @@
     .source-links li { margin-bottom: 4px; }
 
     /* ── Credits and licences ── */
+    .credits-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+    @media (max-width: 900px) { .credits-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 600px) { .credits-grid { grid-template-columns: 1fr; } }
     .credits-group {
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 10px;
-      padding: 18px 22px 8px;
-      margin-bottom: 14px;
+      padding: 16px 18px 12px;
     }
     .credits-group h3 {
       font-family: 'Crimson Pro', Georgia, serif;
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 600;
       color: var(--blue);
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
-    .credits-group > p { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; }
     .credits-list { list-style: none; margin: 0; padding: 0; }
     .credits-list li {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) auto;
-      gap: 4px 16px;
-      align-items: baseline;
-      padding: 10px 0;
-      border-top: 1px solid var(--border);
-      font-size: 13px;
-      line-height: 1.55;
+      font-size: 12px;
+      line-height: 1.5;
       color: var(--text-muted);
+      padding: 6px 0;
+      border-top: 1px solid var(--border);
     }
-    .credits-list li:first-child { border-top: none; }
+    .credits-list li:first-child { border-top: none; padding-top: 2px; }
     .credits-list .credit-name { color: var(--text); font-weight: 600; }
     .credits-list a { color: var(--muted-blue); font-weight: 600; text-underline-offset: 2px; }
-    .credit-licence {
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--spruce);
-      background: #f0f2f4;
-      border: 1px solid #d4d8de;
-      border-radius: 4px;
-      padding: 2px 8px;
-      white-space: nowrap;
-      justify-self: end;
-    }
+    .credits-list a.credit-name { color: var(--text); }
+    .credit-licence { color: var(--spruce); font-weight: 600; white-space: nowrap; }
     .credit-licence a { color: inherit; }
-    @media (max-width: 600px) {
-      .credits-list li { grid-template-columns: 1fr; }
-      .credit-licence { justify-self: start; }
-    }
+    .credits-note { font-size: 12px; color: var(--text-muted); margin-top: 8px; }
 
     /* ── Footer ── */
     footer {
@@ -851,81 +842,39 @@
       <span class="section-heading">Credits and licences</span>
       <span class="section-tag">Thank you</span>
     </div>
-    <p class="section-intro">These tools build on other people's work, shared under open licences. Each is listed here with a link to its source and licence, in recognition of the people who made it.</p>
+    <p class="section-intro">These tools build on other people's work, shared under open licences. Each is listed with a link to its source and licence, in recognition of the people who made it.</p>
 
-    <div class="credits-group">
-      <h3>Code libraries</h3>
-      <ul class="credits-list">
-        <li>
-          <span><a class="credit-name" href="https://github.com/slab/quill" target="_blank" rel="noopener">Quill</a> 2.0.3, by Jason Chen, Slab and contributors. The rich-text editor in the Accordion, Tabs and Flashcard builders.</span>
-          <span class="credit-licence"><a href="https://github.com/slab/quill/blob/main/LICENSE" target="_blank" rel="noopener">BSD 3-Clause</a></span>
-        </li>
-        <li>
-          <span><a class="credit-name" href="https://github.com/Stuk/jszip" target="_blank" rel="noopener">JSZip</a> 3.10.1, by Stuart Knightley and contributors. Creates the Word documents and zip downloads in the Course Export Converter and Course Rollover Audit.</span>
-          <span class="credit-licence"><a href="https://github.com/Stuk/jszip/blob/main/LICENSE.markdown" target="_blank" rel="noopener">MIT</a> (or GPLv3)</span>
-        </li>
-        <li>
-          <span><a class="credit-name" href="https://github.com/SheetJS/sheetjs" target="_blank" rel="noopener">SheetJS Community Edition</a> 0.18.5, by SheetJS. Reads Excel and CSV files in the Staff Page Generator.</span>
-          <span class="credit-licence"><a href="https://github.com/SheetJS/sheetjs/blob/master/LICENSE" target="_blank" rel="noopener">Apache 2.0</a></span>
-        </li>
-      </ul>
-    </div>
+    <div class="credits-grid">
 
-    <div class="credits-group">
-      <h3>Fonts</h3>
-      <p>Served by Google Fonts.</p>
-      <ul class="credits-list">
-        <li>
-          <span><a class="credit-name" href="https://github.com/Fonthausen/CrimsonPro" target="_blank" rel="noopener">Crimson Pro</a>, designed by Jacques Le Bailly. Headings across the site and tools.</span>
-          <span class="credit-licence"><a href="https://github.com/google/fonts/blob/main/ofl/crimsonpro/OFL.txt" target="_blank" rel="noopener">SIL Open Font Licence</a></span>
-        </li>
-        <li>
-          <span><a class="credit-name" href="https://github.com/adobe-fonts/source-sans" target="_blank" rel="noopener">Source Sans 3</a>, designed by Paul D. Hunt for Adobe. Body text across the site and tools.</span>
-          <span class="credit-licence"><a href="https://github.com/google/fonts/blob/main/ofl/sourcesans3/OFL.txt" target="_blank" rel="noopener">SIL Open Font Licence</a></span>
-        </li>
-        <li>
-          <span><a class="credit-name" href="https://github.com/rsms/inter" target="_blank" rel="noopener">Inter</a>, designed by Rasmus Andersson. Text in the Document Header Creator.</span>
-          <span class="credit-licence"><a href="https://github.com/google/fonts/blob/main/ofl/inter/OFL.txt" target="_blank" rel="noopener">SIL Open Font Licence</a></span>
-        </li>
-      </ul>
-    </div>
+      <div class="credits-group">
+        <h3>Code libraries</h3>
+        <ul class="credits-list">
+          <li><a class="credit-name" href="https://github.com/slab/quill" target="_blank" rel="noopener">Quill</a> 2.0.3, by Jason Chen, Slab and contributors. Rich-text editor in the Accordion, Tabs and Flashcard builders. <span class="credit-licence"><a href="https://github.com/slab/quill/blob/main/LICENSE" target="_blank" rel="noopener">BSD 3-Clause</a></span></li>
+          <li><a class="credit-name" href="https://github.com/Stuk/jszip" target="_blank" rel="noopener">JSZip</a> 3.10.1, by Stuart Knightley and contributors. Word documents and zip downloads in the course export tools. <span class="credit-licence"><a href="https://github.com/Stuk/jszip/blob/main/LICENSE.markdown" target="_blank" rel="noopener">MIT</a> (or GPLv3)</span></li>
+          <li><a class="credit-name" href="https://github.com/SheetJS/sheetjs" target="_blank" rel="noopener">SheetJS Community Edition</a> 0.18.5, by SheetJS. Reads Excel and CSV files in the Staff Page Generator. <span class="credit-licence"><a href="https://github.com/SheetJS/sheetjs/blob/master/LICENSE" target="_blank" rel="noopener">Apache 2.0</a></span></li>
+        </ul>
+      </div>
 
-    <div class="credits-group">
-      <h3>Icons</h3>
-      <p>The ready-made icons in the Module Icon Creator.</p>
-      <ul class="credits-list">
-        <li>
-          <span><span class="credit-name">Reading Week</span>: <a href="https://www.flaticon.com/free-icons/book" title="book icons">Book icons created by Magnific - Flaticon</a></span>
-          <span class="credit-licence">Flaticon free licence</span>
-        </li>
-        <li>
-          <span><span class="credit-name">Assessment</span>: <a href="https://www.flaticon.com/free-icons/document" title="document icons">Document icons created by Magnific - Flaticon</a></span>
-          <span class="credit-licence">Flaticon free licence</span>
-        </li>
-        <li>
-          <span><span class="credit-name">Welcome</span>: <a href="https://www.flaticon.com/free-icons/signpost" title="signpost icons">Signpost icons created by Magnific - Flaticon</a></span>
-          <span class="credit-licence">Flaticon free licence</span>
-        </li>
-        <li>
-          <span><span class="credit-name">Teaching Week (calendar)</span>: from the Microsoft 365 icon library.</span>
-          <span class="credit-licence">Microsoft 365 icon</span>
-        </li>
-      </ul>
-    </div>
+      <div class="credits-group">
+        <h3>Fonts</h3>
+        <ul class="credits-list">
+          <li><a class="credit-name" href="https://github.com/Fonthausen/CrimsonPro" target="_blank" rel="noopener">Crimson Pro</a>, designed by Jacques Le Bailly. Headings. <span class="credit-licence"><a href="https://github.com/google/fonts/blob/main/ofl/crimsonpro/OFL.txt" target="_blank" rel="noopener">SIL Open Font Licence</a></span></li>
+          <li><a class="credit-name" href="https://github.com/adobe-fonts/source-sans" target="_blank" rel="noopener">Source Sans 3</a>, designed by Paul D. Hunt for Adobe. Body text. <span class="credit-licence"><a href="https://github.com/google/fonts/blob/main/ofl/sourcesans3/OFL.txt" target="_blank" rel="noopener">SIL Open Font Licence</a></span></li>
+          <li><a class="credit-name" href="https://github.com/rsms/inter" target="_blank" rel="noopener">Inter</a>, designed by Rasmus Andersson. Document Header Creator. <span class="credit-licence"><a href="https://github.com/google/fonts/blob/main/ofl/inter/OFL.txt" target="_blank" rel="noopener">SIL Open Font Licence</a></span></li>
+        </ul>
+        <p class="credits-note">Fonts are served by Google Fonts.</p>
+      </div>
 
-    <div class="credits-group">
-      <h3>Images and logos</h3>
-      <p>These are not covered by open licences, and can't be re-used from this site.</p>
-      <ul class="credits-list">
-        <li>
-          <span><span class="credit-name">Background photograph</span> in the Video Thumbnail Creator, by Douglas Robertson.</span>
-          <span class="credit-licence">&copy; Douglas Robertson</span>
-        </li>
-        <li>
-          <span><span class="credit-name">University of Edinburgh and Edinburgh Medical School logos and crest</span>, used in the image tools to support University courses.</span>
-          <span class="credit-licence">University trademarks</span>
-        </li>
-      </ul>
+      <div class="credits-group">
+        <h3>Icons and images</h3>
+        <ul class="credits-list">
+          <li><span class="credit-name">Module Icon Creator icons:</span> Reading Week, <a href="https://www.flaticon.com/free-icons/book" title="book icons">Book icons created by Magnific - Flaticon</a>; Assessment, <a href="https://www.flaticon.com/free-icons/document" title="document icons">Document icons created by Magnific - Flaticon</a>; Welcome, <a href="https://www.flaticon.com/free-icons/signpost" title="signpost icons">Signpost icons created by Magnific - Flaticon</a>; Teaching Week, from the Microsoft 365 icon library.</li>
+          <li><span class="credit-name">Video Thumbnail Creator background photograph</span> by Douglas Robertson. <span class="credit-licence">&copy; Douglas Robertson</span></li>
+          <li><span class="credit-name">University of Edinburgh and Edinburgh Medical School logos and crest</span>, used to support University courses. <span class="credit-licence">University trademarks</span></li>
+        </ul>
+        <p class="credits-note">The photograph and logos are not openly licensed and can't be re-used from this site.</p>
+      </div>
+
     </div>
 
   </main>
