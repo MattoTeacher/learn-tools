@@ -934,7 +934,7 @@ const BBConvert = (() => {
           if (max && size > max && f.head) return f.head(max);
           const b = await f.async('uint8array'); return max ? b.subarray(0, max) : b;
         },
-        sizeOf: path => (zip.files[path] || {}).size || 0 };
+        sizeOf: path => { const z = zip.files[path] || {}; return z.size || (z._data && z._data.uncompressedSize) || 0; } };
     }
 
     // start-here guide
@@ -1268,6 +1268,24 @@ const BBCheck = (() => {
     return /^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/.test(h) || h === 'localhost' ? h : '';
   }
 
+  /* ---------- file sizes ----------
+     Files at or over this size are flagged as large. Change the number here to adjust it. */
+  const LARGE_FILE_MB = 500;
+  const fmtSize = b => b >= 1e9 ? (b / 1e9).toFixed(1) + ' GB' : b >= 1e6 ? Math.round(b / 1e6) + ' MB' : Math.max(1, Math.round(b / 1e3)) + ' KB';
+  function largeFileAdvice(name, size) {
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    const start = `At ${fmtSize(size)}, this file is very large for students to download, especially on a slow connection or mobile data.`;
+    if (/^(pptx|ppt|ppsx|pps|pptm)$/.test(ext))
+      return `${start} If it's a recorded PowerPoint, export it as a video (File > Export > Create a Video), upload the video to Media Hopper and link to it here, and keep the slides as a separate file without the recordings. Otherwise, File > Info > Compress Media and Compress Pictures can make it much smaller.`;
+    if (/^(mp4|m4v|mov|webm|avi|wmv|mkv|mp3|m4a|wav|aac)$/.test(ext))
+      return `${start} Upload it to Media Hopper instead and link to it here. Media Hopper streams video and audio at a size that suits each student's connection.`;
+    if (/^(pdf|docx|doc|xlsx|xls)$/.test(ext))
+      return `${start} It probably contains large images or embedded media. Try compressing the pictures before saving (in Word or PowerPoint: Compress Pictures; for PDFs, save a reduced-size copy), or split it into smaller files.`;
+    if (/^(zip|7z|rar)$/.test(ext))
+      return `${start} Check whether students need everything in it, and consider sharing the large parts another way, such as videos through Media Hopper.`;
+    return `${start} Check whether it can be made smaller, or shared another way, such as videos through Media Hopper.`;
+  }
+
   /* ---------- run ---------- */
   async function run(res, opts = {}) {
     const includeTemplate = !!opts.includeTemplate;
@@ -1324,11 +1342,12 @@ const BBCheck = (() => {
         'Videos, live session links and readings are listed in their own sections instead.',
         'Also notes vague link text ("click here", "link", "here") and links whose text is the bare web address.',
       ], issues: [] },
-      files: { name: 'File names', why: "Students see file names in their downloads, long after leaving Learn. A good name says what's inside without needing the course around it: course code, topic, then type. Leave out years so files don't need renaming at every rollover.", rules: [
+      files: { name: 'File names and sizes', why: "Students see file names in their downloads, long after leaving Learn. A good name says what's inside without needing the course around it: course code, topic, then type. Leave out years so files don't need renaming at every rollover.", rules: [
         'Flags names containing a year, academic year or month, so you can check whether the file needs replacing, renaming or removing, or is fine as it is.',
         'Flags names that don\'t describe the content (Document1, Week 3, Slides, IMG_2034) or look like codes.',
         'Flags version labels such as "final", "v2", "draft" or "(1)".',
         'Suggests a name built from the course code and the topic of the folder it sits in.',
+        `Flags files of ${LARGE_FILE_MB} MB or more as large, with advice for each kind of file (recorded PowerPoints, videos, documents). Large files are listed first, biggest first.`,
       ], issues: [] },
     };
 
@@ -1581,12 +1600,15 @@ const BBCheck = (() => {
             : "Review this link. If it's a reading students are expected to do, consider adding it to the Resource List and pointing students there. If it belongs here, no change is needed." });
       }
 
-      // file names
+      // file names and sizes
       for (const f of page.files) {
-        if (f.image || seenFiles.has(f.path)) continue;
+        if (seenFiles.has(f.path)) continue;
+        const size = res.sizeOf ? res.sizeOf(f.path) : 0;
+        const large = size >= LARGE_FILE_MB * 1e6;
+        if (f.image && !large) continue;
         seenFiles.add(f.path);
-        const probs = fileNameProblems(f.name);
-        if (!probs.length) continue;
+        const probs = f.image ? [] : fileNameProblems(f.name);
+        if (!probs.length && !large) continue;
         const ext = (f.name.match(/\.[A-Za-z0-9]{1,5}$/) || [''])[0];
         const topic = topicFrom(page.loc);
         const tw = typeWord(f.name);
@@ -1597,7 +1619,9 @@ const BBCheck = (() => {
         if (dated) parts.push("The name contains a date or year. Check whether the file is still right for the new session: it may need replacing with a newer version (a handbook, for example), renaming, or removing, or it may be fine as it is (a policy that hasn't changed since it was published).");
         if (other.length) parts.push(`The name ${other.map(p => p.text).join(', and ')}. Consider renaming it${suggestion ? `, for example "${esc(suggestion)}"` : ''}.`);
         else if (dated && suggestion) parts.push(`If you rename it, a name without the year saves renaming it again next time, for example "${esc(suggestion)}".`);
-        CAT.files.issues.push({ loc: locText, heading: '', snippet: `<mark>${esc(f.name)}</mark>`, fix: parts.join(' ') });
+        if (large) parts.unshift(largeFileAdvice(f.name, size));
+        CAT.files.issues.push({ loc: locText, heading: '', size, large,
+          snippet: `<mark>${esc(f.name)}</mark>${large ? `<br><strong>Large file: ${fmtSize(size)}</strong>` : ''}`, fix: parts.join(' ') });
       }
     }
 
@@ -1608,6 +1632,7 @@ const BBCheck = (() => {
         fix: 'Open the link and check it still works and is still the right page.', note: [...e.notes][0] || '' });
     }
 
+    CAT.files.issues = [...CAT.files.issues.filter(i => i.large).sort((a, b) => b.size - a.size), ...CAT.files.issues.filter(i => !i.large)];
     const order = ['dates', 'placeholders', 'broken', 'rollover', 'live', 'readings', 'videos', 'external', 'files'];
     const cats = order.map(id => Object.assign({ id }, CAT[id]));
     cats.excludedTemplate = excludedTemplate;
@@ -1693,6 +1718,8 @@ const BBCheck = (() => {
     $('courseTitle').textContent = r.title;
     const total = cats.reduce((a, c) => a + c.issues.length, 0);
     const bits = [`${plural(r.sectionTitles.length, 'section')} checked`, `${plural(total, 'thing')} to look at`];
+    const largeCount = (cats.find(c => c.id === 'files') || { issues: [] }).issues.filter(i => i.large).length;
+    if (largeCount) bits.push(`${plural(largeCount, 'large file')} of 500 MB or more`);
     if (r.hiddenCount) bits.push(`includes ${plural(r.hiddenCount, 'item')} hidden from students`);
     const left = cats.excludedTemplate || [], staff = cats.excludedStaff || [];
     if (staff.length) bits.push(`${plural(staff.length, 'staff folder')} left out`);
@@ -1735,7 +1762,7 @@ const BBCheck = (() => {
 ${staff.length ? `<p>Staff folders left out of this audit: ${staff.map(esc).join('; ')}.</p>` : ''}
 ${left.length ? `<p>University template items left out of this audit: ${left.map(esc).join('; ')}.</p>` : '<p>University template items are included in this audit.</p>'}
 <p>Work through each table and tick Done as you update the new course on Learn. The Where column shows the folder and page, and the highlighted text shows exactly what was found.</p>
-<h1>Summary</h1><ul>${cats.map(c => `<li>${esc(c.name)}: ${c.issues.length}</li>`).join('')}</ul>`;
+<h1>Summary</h1><ul>${cats.map(c => `<li>${esc(c.name)}: ${c.issues.length}${c.id === 'files' && c.issues.some(i => i.large) ? ` (including ${plural(c.issues.filter(i => i.large).length, 'large file')} of 500 MB or more)` : ''}</li>`).join('')}</ul>`;
     for (const c of cats) {
       h += `<h1>${esc(c.name)}</h1><p>${esc(c.why)}</p>${c.help ? `<p>${c.help}</p>` : ''}`;
       if (!c.issues.length) { h += '<p><em>Nothing found.</em></p>'; continue; }
