@@ -18,6 +18,7 @@
   --ink: #1f262b;
   --muted: #4f5b63;
   --paper: #ffffff;
+  --frame: #830065;      /* page background around the tool: University purple */
   --wash: #f7f2f5;       /* panels */
   --rule: #c9d3ce;
   --notice: #fbf6e3;
@@ -29,6 +30,7 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --green: #e38ccb; --green-hover: #f0b4df; --jade: #7fb3b4; --burgundy: #ff7a9a;
+    --frame: #4a0039;
     --ink: #e8ecea; --muted: #b3bdb8; --paper: #121816; --wash: #1b2421; --rule: #33413b;
     --notice: #2a2617; --notice-rule: #b8952a;
   }
@@ -36,10 +38,15 @@
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body {
-  margin: 0; background: var(--paper); color: var(--ink);
+  margin: 0; background: var(--frame); color: var(--ink);
   font: 400 1.0625rem/1.55 var(--sans);
 }
-.wrap { max-width: 46rem; margin: 0 auto; padding: 3rem 1.25rem 4rem; }
+.wrap {
+  max-width: 46rem; margin: 2.5rem auto; padding: 3rem 2.5rem 2.5rem;
+  background: var(--paper); border-radius: 18px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, .28);
+}
+@media (max-width: 52rem) { .wrap { margin: 1rem .75rem; padding: 2rem 1.25rem 2rem; border-radius: 14px; } }
 header h1 {
   font: 600 clamp(2.2rem, 6vw, 3.1rem)/1.05 var(--serif);
   color: var(--green); margin: 0 0 .75rem; letter-spacing: -.01em;
@@ -91,6 +98,8 @@ summary { cursor: pointer; color: var(--green); font-weight: 600; }
 summary:focus-visible { outline: 3px solid var(--green); outline-offset: 2px; border-radius: 2px; }
 details > div { padding: .6rem 0 0 1.1rem; border-left: 2px solid var(--rule); margin: .5rem 0 0 .3rem; }
 details > div p:last-child { margin-bottom: 0; }
+details > div ul { margin: 0 0 .8rem; padding-left: 1.2rem; }
+details > div li { margin: 0 0 .3rem; }
 
 .check { display: flex; gap: .6rem; align-items: flex-start; margin: 1.1rem 0 0; }
 .check input { width: 1.15rem; height: 1.15rem; margin: .2rem 0 0; accent-color: var(--green); flex: none; }
@@ -227,6 +236,23 @@ mark { background: var(--mark); color: var(--mark-ink); padding: 0 .12em; border
     </div>
     <div id="err1"></div>
     <label class="check"><input type="checkbox" id="template"> <span>Include University template pages, such as Help and Support and Library Resources. These are the same in every course, so they are left out by default. Staff folders are always left out.</span></label>
+    <details>
+      <summary>What counts as a staff folder?</summary>
+      <div>
+        <p>Staff folders are always left out of the audit, with everything inside them. A folder counts as a staff folder when:</p>
+        <ul>
+          <li>it's a folder, at any level of the course, not a single page or document</li>
+          <li>its name contains the word "staff", for example "Staff Folder (keep hidden)", "Staff Guidance and Resources", "STAFF ONLY" or "Staff notes - Week 3"</li>
+        </ul>
+        <p>Folders that are meant for students don't count, even with "staff" in the name:</p>
+        <ul>
+          <li>"Meet the staff", "Meet our staff" and similar</li>
+          <li>"Staff contacts", "Staff profiles", "Staff directory", "Staff list" and "Staff biographies"</li>
+          <li>"Teaching staff", "Course staff", "Programme staff", "Academic staff", "Support staff" and "Our staff"</li>
+        </ul>
+        <p>The word has to be "staff" on its own, so a folder called "Staffing" is still audited. If your staff area is called something else, such as "Tutor area", it will be audited.</p>
+      </div>
+    </details>
     <details>
       <summary>How do I export a course from Learn?</summary>
       <div>
@@ -631,6 +657,9 @@ const BBConvert = (() => {
   async function convert(zip, opts = {}) {
     const progress = opts.onProgress || (() => {});
     const includeStaff = !!opts.includeStaff;
+    // items hidden from students are left out of a conversion unless asked for (the audit always checks them)
+    const includeHidden = !!opts.includeHidden;
+    const skipHidden = !opts.analyse && !includeHidden;
     const analyse = !!opts.analyse;
     const pages = [];
     const mf = zip.file('imsmanifest.xml');
@@ -690,7 +719,7 @@ const BBConvert = (() => {
     }
 
     const imageCache = {};
-    const warnings = { hidden: 0, years: new Set(), missingImages: 0, interactive: [] };
+    const warnings = { hiddenSkipped: [], hidden: 0, years: new Set(), missingImages: 0, interactive: [] };
     const BLOCKS = {};
     for (const [x, v] of Object.entries(XID)) {
       if (/^UNSAFE_HTML/.test(v.name) || /\.html?$/i.test(v.name)) BLOCKS[x] = await zip.file(v.path).async('string');
@@ -804,6 +833,13 @@ const BBConvert = (() => {
         }
         if (!path && (xm || /^https?:/i.test(src))) warnings.missingImages++;
         if (path && IMG_EXT.test(path)) { const alt = img.getAttribute('alt') || ''; [...img.attributes].forEach(at => img.removeAttribute(at.name)); img.setAttribute('data-zip', path); img.setAttribute('alt', alt); }
+        else if (path && xm && XID[xm[1]] && folderFiles) {
+          const saved = folderFiles.add(xm[1]);
+          const alt = (img.getAttribute('alt') || '').trim();
+          const note = doc.createElement('span');
+          note.innerHTML = `<strong>Image${alt ? `: ${escHtml(alt)}` : ''}</strong>, saved in this folder as <em>${escHtml(saved)}</em>`;
+          img.replaceWith(note);
+        }
         else img.remove();
       }
       body.querySelectorAll('span,font').forEach(s => s.replaceWith(...s.childNodes));
@@ -829,8 +865,14 @@ const BBConvert = (() => {
 
     function childItems(el) { return [...el.children].filter(c => c.tagName === 'item'); }
     const itemTitle = el => { const t = [...el.children].find(c => c.tagName === 'title'); return t ? t.textContent : ''; };
+    // staff folders: "staff" in a folder's name, but not student-facing names like "Meet the staff" (same rule as the audit)
+    const normT = t => String(t).toLowerCase().replace(/&/g, ' and ').replace(/\(hidden\)/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+    const STUDENT_FACING_STAFF = /\b(?:meet (?:the|our|your) (?:\w+ )?staff|staff (?:contacts?|profiles?|directory|list|biographies|bios)|(?:teaching|course|programme|our|academic|support) staff)\b/;
+    const isStaffTitle = t => { const n = normT(t); return /\bstaff\b/.test(n) && !STUDENT_FACING_STAFF.test(n); };
+    // a folder holds other items (a document only holds its own page body)
+    const isFolderItem = el => childItems(el).some(c => itemTitle(c) !== 'ultraDocumentBody');
 
-    async function renderItem(it, folderFiles, depth, parentTitle = '', trail = []) {
+    async function renderItem(it, folderFiles, depth, parentTitle = '', trail = [], inStaff = false) {
       const title = itemTitle(it);
       const ref = it.getAttribute('identifierref');
       const raw = await readDat(ref);
@@ -840,7 +882,12 @@ const BBConvert = (() => {
       const isBody = title === 'ultraDocumentBody';
       const pageName = isBody ? parentTitle : title;
       const myTrail = isBody ? trail : [...trail, title];
-      if (!isBody && getV('ISAVAILABLE') === 'false') warnings.hidden++;
+      // staff folders follow the staff tickbox only: left out unless it's ticked, and then included even though hidden
+      const staffHere = inStaff || (!isBody && isFolderItem(it) && isStaffTitle(title));
+      if (staffHere && !inStaff && !includeStaff) { skippedStaff.push(myTrail.join(' › ')); return ''; }
+      const isHidden = !isBody && getV('ISAVAILABLE') === 'false';
+      if (isHidden) warnings.hidden++;
+      if (isHidden && skipHidden && !staffHere) { warnings.hiddenSkipped.push(myTrail.join(' › ')); return ''; }
       const parts = [];
       if (!isBody) parts.push(`<h${Math.min(depth, 6)}>${escHtml(title)}</h${Math.min(depth, 6)}>`);
       const bodyEl = d && d.querySelector('BODY > TEXT');
@@ -851,9 +898,10 @@ const BBConvert = (() => {
       // files attached to the item but not referenced in the body
       for (const m of raw.matchAll(/xid-(\d+_1)/g)) {
         const x = m[1];
-        if (XID[x] && !folderFiles.has(x) && !/^UNSAFE_HTML/.test(XID[x].name) && !IMG_EXT.test(XID[x].name) && !bodyHtml.includes(`xid-${x}`)) {
+        if (XID[x] && !folderFiles.has(x) && !/^UNSAFE_HTML/.test(XID[x].name) && !bodyHtml.includes(`xid-${x}`)) {
           const saved = folderFiles.add(x);
-          parts.push(`<p${analyse ? ` data-file="${escHtml(XID[x].path)}" data-name="${escHtml(XID[x].name)}"` : ''}><strong>Attached file:</strong> saved in this folder as <em>${escHtml(saved)}</em></p>`);
+          const kind = /\.(png|jpe?g|gif|svg|webp|bmp|tiff?)$/i.test(XID[x].name) ? 'Image file' : 'Attached file';
+          parts.push(`<p${analyse ? ` data-file="${escHtml(XID[x].path)}" data-name="${escHtml(XID[x].name)}"` : ''}><strong>${kind}:</strong> saved in this folder as <em>${escHtml(saved)}</em></p>`);
         }
       }
       const low = raw.toLowerCase();
@@ -880,7 +928,7 @@ const BBConvert = (() => {
           pages.push({ loc: myTrail, title: pageName, html, files, url: /^https?:/i.test(url) ? url : '', handler,
             hidden: getV('ISAVAILABLE') === 'false', resourceList: /leganto|resourcelist/i.test(handler) });
       }
-      for (const k of childItems(it)) parts.push(await renderItem(k, folderFiles, isBody ? depth : depth + 1, pageName, myTrail));
+      for (const k of childItems(it)) parts.push(await renderItem(k, folderFiles, isBody ? depth : depth + 1, pageName, myTrail, staffHere));
       return parts.join('\n');
     }
 
@@ -889,8 +937,8 @@ const BBConvert = (() => {
     const root = childItems(org)[0];
     const top = childItems(root)[0] || root;
     let sectionEls = childItems(top).filter(s => childItems(s).length);
-    const skippedStaff = sectionEls.filter(s => /staff/i.test(itemTitle(s))).map(itemTitle);
-    if (!includeStaff) sectionEls = sectionEls.filter(s => !/staff/i.test(itemTitle(s)));
+    const skippedStaff = sectionEls.filter(s => isStaffTitle(itemTitle(s))).map(itemTitle);
+    if (!includeStaff) sectionEls = sectionEls.filter(s => !isStaffTitle(itemTitle(s)));
     if (!sectionEls.length) throw new Error('No course content was found in this export. Check it is an Ultra course export rather than an Original course or a grade export.');
 
     const ROOT = `${safe(short, 40)} Course Materials`;
@@ -898,13 +946,21 @@ const BBConvert = (() => {
     const sections = [];
     const fullHtml = [];
 
+    let folderNum = 0;
     for (let n = 0; n < sectionEls.length; n++) {
       const sec = sectionEls[n];
       const t = itemTitle(sec);
       progress(`Converting ${t}`, 0.1 + 0.75 * n / sectionEls.length);
+      // a whole section hidden from students
+      const secRaw = await readDat(sec.getAttribute('identifierref'));
+      const secIsStaff = isStaffTitle(t);
+      if (/ISAVAILABLE\s+value="false"/.test(secRaw)) {
+        warnings.hidden++;
+        if (skipHidden && !secIsStaff) { warnings.hiddenSkipped.push(t); continue; }
+      }
       const wk = t.match(/^Week\s+(\d+)/i);
       const label = safe(wk ? `Week ${pad2(wk[1])}` + t.slice(wk[0].length) : t, 45);
-      const folder = `${ROOT}/${pad2(n + 1)} - ${label}`;
+      const folder = `${ROOT}/${pad2(folderNum + 1)} - ${label}`;
       const used = new Map(); const names = new Set();
       const folderFiles = {
         has: x => used.has(x),
@@ -916,7 +972,10 @@ const BBConvert = (() => {
         }
       };
       let inner = '';
-      for (const k of childItems(sec)) inner += await renderItem(k, folderFiles, 2, t, [t]);
+      for (const k of childItems(sec)) inner += await renderItem(k, folderFiles, 2, t, [t], secIsStaff);
+      // nothing left once hidden items are taken out: no folder for this section
+      if (!analyse && !inner.trim() && !used.size) continue;
+      folderNum++;
       const docName = `${wk ? `Week ${pad2(wk[1])}` : safe(t, 45)} - course text.docx`;
       files.push({ path: `${folder}/${docName}`, docx: { html: inner, title: t } });
       for (const [x, nm] of used) files.push({ path: `${folder}/${nm}`, zipPath: XID[x].path });
@@ -941,7 +1000,7 @@ const BBConvert = (() => {
     const rows = sections.map(s => `<h2>${escHtml(s.folder)}</h2><ul><li>${escHtml(s.doc)}: all the written content from this section of the course</li>${s.attachments.map(a => `<li>${escHtml(a)}</li>`).join('')}</ul>`).join('');
     const start = `<p>This folder contains the content of the Learn course <em>${escHtml(title)}</em> in downloadable form. Each section of the course has its own numbered folder. Inside each folder is a Word document with all the written content for that section, plus the original slides, PDFs and other files attached to it.</p>
 <p>There is also a single Word document and a single web page containing the written content of the whole course, so you can search everything at once. The Word documents use proper headings, so you can use the Navigation Pane in Word (View, then Navigation Pane) or your screen reader's heading navigation to move between sections, and you can change the font, size, colours and spacing to suit you.</p>
-<h1>What is not included</h1><ul><li><strong>Reading lists</strong> are held in the University Resource List system (Leganto), not in the course itself. The documents show where each reading list sits; open them from Learn.</li><li><strong>Videos</strong> are listed with their web addresses so you can open them directly.</li><li><strong>Live session links, discussion boards, journals, assignment submission, tests and feedback surveys</strong> still need to be used on Learn. The prompts and instructions for each are included in the documents.</li></ul>
+<h1>What is not included</h1><ul><li><strong>Reading lists</strong> are held in the University Resource List system (Leganto), not in the course itself. The documents show where each reading list sits; open them from Learn.</li><li><strong>Videos</strong> are listed with their web addresses so you can open them directly.</li><li><strong>Live session links, discussion boards, journals, assignment submission, tests and feedback surveys</strong> still need to be used on Learn. The prompts and instructions for each are included in the documents.</li>${skipHidden && warnings.hiddenSkipped.length ? '<li><strong>Content not yet visible to students on Learn</strong> is not included. It will appear on Learn when it is made available.</li>' : ''}</ul>
 <h1>What is in each folder</h1>${rows}`;
     files.unshift({ path: `${ROOT}/00 - Start here.docx`, docx: { html: start, title: `Start here: ${short} course materials` } });
     const all = fullHtml.join('\n');
@@ -973,7 +1032,7 @@ const BBConvert = (() => {
     const oldYears = [...warnings.years].filter(y => y < acadStart && y > 2000).sort();
     return {
       code, title, short, root: ROOT, sections, skippedStaff, includeStaff,
-      hiddenCount: warnings.hidden, oldYears, missingImages: warnings.missingImages, interactive: warnings.interactive,
+      hiddenCount: warnings.hidden, includeHidden, hiddenSkipped: warnings.hiddenSkipped, oldYears, missingImages: warnings.missingImages, interactive: warnings.interactive,
       files, // {path, data (Uint8Array)} or {path, zipPath}
       async getBytes(f) { return f.data || zip.file(f.zipPath).async('uint8array'); },
       // a stream of the file's bytes, so large files can be copied without holding them in memory
@@ -1385,7 +1444,7 @@ const BBCheck = (() => {
       const headings = [...body.querySelectorAll('h1,h2,h3,h4,h5,h6')];
       const lastTitle = normTitle(page.loc[page.loc.length - 1]);
       const headingBefore = el => { let hd = ''; for (const x of headings) { if (x === el) break; if (x.compareDocumentPosition(el) & 4) hd = x.textContent.replace(/\s+/g, ' ').trim(); } return normTitle(hd) === lastTitle ? '' : hd; };
-      const isNote = el => { const s = el.querySelector && el.querySelector(':scope > strong'); return el.tagName === 'P' && s && el.firstElementChild === s && /^(Attached file|Video|Media Hopper video|Embedded content|Link to a tool on Learn|Interactive content)/.test(s.textContent); };
+      const isNote = el => { const s = el.querySelector && el.querySelector(':scope > strong'); return el.tagName === 'P' && s && el.firstElementChild === s && /^(Attached file|Image file|Image\b|Video|Media Hopper video|Embedded content|Link to a tool on Learn|Interactive content)/.test(s.textContent); };
       const blockOf = el => el.closest('p,li,td,th,h1,h2,h3,h4,h5,h6,dd,dt,blockquote') || el.closest('div') || body;
       // the text a reader sees just before this block (skipping our own notes)
       const prevText = blk => {
@@ -1673,11 +1732,16 @@ const BBCheck = (() => {
   ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
   drop.addEventListener('drop', e => { const f = e.dataTransfer.files[0]; if (f) start(f); });
   // re-run the checks only: no need to read the export again
+  // re-run the checks only; a change made while they're running is applied when they finish
+  let templatePending = false;
   $('template').addEventListener('change', async () => {
-    if (!result || busy) return;
+    if (!result) return;
+    if (busy) { templatePending = true; return; }
     busy = true;
-    try { cats = await BBCheck.run(result, { includeTemplate: $('template').checked }); render(); }
-    finally { busy = false; }
+    try {
+      do { templatePending = false; cats = await BBCheck.run(result, { includeTemplate: $('template').checked }); } while (templatePending);
+      render();
+    } finally { busy = false; }
   });
 
   async function start(file) {
