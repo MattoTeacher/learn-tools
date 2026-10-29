@@ -357,7 +357,10 @@
     font-style: normal;
     font-weight: 600;
     font-size: 2.8cqw;
-    padding: 0.45em 0.9em;
+    line-height: 1;
+    white-space: nowrap;
+    padding: 0.4em 0.8em;
+    border-radius: 999px;
     transition: background 0.2s;
   }
 
@@ -386,8 +389,13 @@
     border-radius: 50%;
     border: calc(8 / 1920 * 100cqw) solid #ffffff;
     background: #ccd5dd center 40% / cover no-repeat;
+    cursor: grab;
+    touch-action: none;
     box-shadow: 0 calc(6 / 1920 * 100cqw) calc(18 / 1920 * 100cqw) rgba(0,0,0,0.25);
   }
+
+  .presenter-photo.dragging { cursor: grabbing; }
+  .presenter-photo:focus-visible { outline: 3px solid #f2c75c; outline-offset: 3px; }
 
   /* Photo credit on the preview */
   .photo-credit {
@@ -538,23 +546,26 @@
     </section>
 
     <section class="panel" aria-labelledby="card-logo">
-      <h2 class="card-title" id="card-logo">Logo &amp; presenters</h2>
-      <div>
-        <div class="section-heading">Logo</div>
-        <label class="upload-zone" id="logo-upload-label">
-          <input type="file" id="logo-upload" accept="image/png,image/jpeg,image/svg+xml,image/webp">
-          <span id="logo-upload-text">Click to use your own logo</span>
-        </label>
-        <p class="hint">Your logo is scaled to fit the white box in the top-right corner. A wide logo on a white or transparent background works best.</p>
-        <button type="button" class="btn-text" id="logo-reset" hidden>Reset to Edinburgh Medical School logo</button>
-      </div>
-
+      <h2 class="card-title" id="card-logo">Presenters &amp; logo</h2>
       <div>
         <div class="section-heading">Presenter Photos</div>
         <label class="check-row"><input type="checkbox" id="photos-toggle"> <span>Add presenter photos</span></label>
         <div class="optional-body" id="photos-body" hidden>
-          <p class="hint">Up to three photos, shown as ovals below the logo. Portrait photos with the face near the middle work best. Only use photos you have permission to use; they stay on your computer.</p>
+          <p class="hint">Up to three photos, shown as ovals below the logo. Only use photos you have permission to use; they stay on your computer.</p>
           <div id="photo-slots"></div>
+          <p class="hint" id="photo-drag-hint" hidden><strong>To reposition a photo in its frame,</strong> drag it in the preview, or click it and use the arrow keys. Double-click to reset.</p>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-heading">Logo</div>
+        <label class="check-row"><input type="checkbox" id="logo-toggle"> <span>Use your own logo</span></label>
+        <div class="optional-body" id="logo-body" hidden>
+          <label class="upload-zone" id="logo-upload-label">
+            <input type="file" id="logo-upload" accept="image/png,image/jpeg,image/svg+xml,image/webp">
+            <span id="logo-upload-text">Click to choose your logo</span>
+          </label>
+          <p class="hint">Your logo is scaled to fit the white box in the top-right corner. A wide logo on a white or transparent background works best. Untick to go back to the Edinburgh Medical School logo.</p>
         </div>
       </div>
     </section>
@@ -670,9 +681,17 @@
   const logoImg      = document.getElementById('logo-image');
   const logoInput    = document.getElementById('logo-upload');
   const logoText     = document.getElementById('logo-upload-text');
-  const logoReset    = document.getElementById('logo-reset');
   const DEFAULT_LOGO = { src: logoImg.src, alt: logoImg.alt };
 
+  const logoToggle = document.getElementById('logo-toggle');
+  const logoBody   = document.getElementById('logo-body');
+  let customLogo = null;                         // kept if the box is unticked, so ticking again brings it back
+  function applyLogo() {
+    const own = logoToggle.checked && customLogo;
+    logoImg.src = own ? customLogo : DEFAULT_LOGO.src;
+    logoImg.alt = own ? 'Uploaded logo' : DEFAULT_LOGO.alt;
+  }
+  logoToggle.addEventListener('change', () => { logoBody.hidden = !logoToggle.checked; applyLogo(); });
   logoInput.addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
@@ -682,20 +701,11 @@
     }
     const reader = new FileReader();
     reader.onload = ev => {
-      logoImg.src = ev.target.result;
-      logoImg.alt = 'Uploaded logo';
-      logoText.textContent = file.name;
-      logoReset.hidden = false;
+      customLogo = ev.target.result;
+      logoText.textContent = file.name + ' (click to change)';
+      applyLogo();
     };
     reader.readAsDataURL(file);
-  });
-
-  logoReset.addEventListener('click', () => {
-    logoImg.src = DEFAULT_LOGO.src;
-    logoImg.alt = DEFAULT_LOGO.alt;
-    logoInput.value = '';
-    logoText.textContent = 'Click to use your own logo';
-    logoReset.hidden = true;
   });
 
   /* ── Shared layout for presenter photos and the photo credit ──
@@ -747,9 +757,12 @@
       if (!file) return;
       if (!file.type.startsWith('image/')) { label.textContent = 'Please choose an image file'; return; }
       const reader = new FileReader();
-      reader.onload = ev => {
-        photos[i] = ev.target.result;
-        thumb.style.backgroundImage = `url("${photos[i]}")`; thumb.classList.add('filled');
+      reader.onload = async ev => {
+        const src = ev.target.result, img = await loadImage(src);
+        if (!img) { label.textContent = 'That image could not be opened'; return; }
+        photos[i] = { src, nw: img.naturalWidth, nh: img.naturalHeight, fx: 0.5, fy: PHOTO_FOCUS_Y, thumb };
+        thumb.style.backgroundImage = `url("${src}")`; thumb.style.backgroundPosition = '';
+        thumb.classList.add('filled');
         label.textContent = file.name; remove.hidden = false;
         renderPhotos();
       };
@@ -774,8 +787,59 @@
       d.style.top    = ((o.cy - o.h / 2) / EXPORT_H * 100) + '%';
       d.style.width  = (o.w / EXPORT_W * 100) + '%';
       d.style.height = (o.h / EXPORT_H * 100) + '%';
-      d.style.backgroundImage = `url("${list[i]}")`;
+      d.style.backgroundImage = `url("${list[i].src}")`;
+      d.tabIndex = 0;
+      d.setAttribute('role', 'img');
+      d.setAttribute('aria-label', `Presenter photo ${i + 1}. Drag, or use the arrow keys, to move the photo in its frame.`);
+      enableDrag(d, list[i]);
       photosLayer.appendChild(d);
+    });
+    document.getElementById('photo-drag-hint').hidden = list.length === 0;
+  }
+
+  // Drag a photo inside its oval. fx/fy work like CSS background-position percentages
+  // (0 = left/top edge of the photo showing, 1 = right/bottom), and the export uses the same numbers.
+  function setFocus(el, p) {
+    const pos = `${(p.fx * 100).toFixed(2)}% ${(p.fy * 100).toFixed(2)}%`;
+    el.style.backgroundPosition = pos;
+    p.thumb.style.backgroundPosition = pos;
+  }
+  function enableDrag(el, p) {
+    setFocus(el, p);
+    // how far the photo overhangs the frame, in on-screen pixels
+    const overhang = () => {
+      const r = el.getBoundingClientRect();
+      const s = Math.max(r.width / p.nw, r.height / p.nh);
+      return { x: p.nw * s - r.width, y: p.nh * s - r.height };
+    };
+    const clamp = v => Math.min(1, Math.max(0, v));
+    let start = null;
+    el.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      el.focus();
+      el.setPointerCapture(e.pointerId);
+      start = { x: e.clientX, y: e.clientY, fx: p.fx, fy: p.fy, o: overhang() };
+      el.classList.add('dragging');
+    });
+    el.addEventListener('pointermove', e => {
+      if (!start) return;
+      // dragging right shows more of the photo's left side, so the position goes down
+      if (start.o.x > 0.5) p.fx = clamp(start.fx - (e.clientX - start.x) / start.o.x);
+      if (start.o.y > 0.5) p.fy = clamp(start.fy - (e.clientY - start.y) / start.o.y);
+      setFocus(el, p);
+    });
+    const end = () => { start = null; el.classList.remove('dragging'); };
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+    el.addEventListener('dblclick', () => { p.fx = 0.5; p.fy = PHOTO_FOCUS_Y; setFocus(el, p); });
+    el.addEventListener('keydown', e => {
+      const keys = { ArrowLeft: [1, 0], ArrowRight: [-1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] };
+      if (!keys[e.key]) return;
+      e.preventDefault();
+      const o = overhang(), step = e.shiftKey ? 30 : 6;   // pixels per press
+      if (o.x > 0.5) p.fx = clamp(p.fx + keys[e.key][0] * step / o.x);
+      if (o.y > 0.5) p.fy = clamp(p.fy + keys[e.key][1] * step / o.y);
+      setFocus(el, p);
     });
   }
   photosToggle.addEventListener('change', () => { photosBody.hidden = !photosToggle.checked; renderPhotos(); });
@@ -823,7 +887,7 @@
     const list = activePhotos();
     const layout = presenterLayout(list.length);
     for (let i = 0; i < layout.length; i++) {
-      const o = layout[i], img = await loadImage(list[i]);
+      const o = layout[i], p = list[i], img = await loadImage(p.src);
       const rx = o.w / 2, ry = o.h / 2;
       // soft shadow, then the photo clipped to an oval, then the white border inside the oval's edge
       ctx.save();
@@ -835,7 +899,7 @@
         ctx.beginPath(); ctx.ellipse(o.cx, o.cy, rx, ry, 0, 0, Math.PI * 2); ctx.clip();
         const scale = Math.max(o.w / img.naturalWidth, o.h / img.naturalHeight);
         const sw = img.naturalWidth * scale, sh = img.naturalHeight * scale;
-        ctx.drawImage(img, o.cx - rx - (sw - o.w) * 0.5, o.cy - ry - (sh - o.h) * PHOTO_FOCUS_Y, sw, sh);
+        ctx.drawImage(img, o.cx - rx - (sw - o.w) * p.fx, o.cy - ry - (sh - o.h) * p.fy, sw, sh);
         ctx.restore();
       }
       ctx.beginPath(); ctx.ellipse(o.cx, o.cy, rx - OVAL_BORDER / 2, ry - OVAL_BORDER / 2, 0, 0, Math.PI * 2);
@@ -948,14 +1012,19 @@
     const progSize = Math.round(parseInt(document.getElementById('badge-size').value) / 100 * W * 0.1);
     ctx.font = `600 ${progSize}px 'Crimson Pro', serif`;
     const progW  = ctx.measureText(progText).width;
-    const padH   = Math.round(progSize * 0.45);
-    const padV   = Math.round(progSize * 0.35);
+    const padH   = progSize * 0.8;
+    const padV   = progSize * 0.4;
+    const badgeH = progSize + padV * 2;
     const badgeX = Math.round(W * 0.04);
-    const badgeY = Math.round(H * 0.84);
+    const badgeY = Math.round(H * 0.95 - badgeH);
     ctx.fillStyle = badgeColour;
-    ctx.fillRect(badgeX, badgeY, progW + padH * 2, progSize + padV * 2);
+    pillPath(ctx, badgeX, badgeY, progW + padH * 2, badgeH);
+    ctx.fill();
+    // place the baseline the way the browser does for line-height 1, so the text sits centred
+    const fm = ctx.measureText(progText);
+    const asc = fm.fontBoundingBoxAscent ?? progSize * 0.9, desc = fm.fontBoundingBoxDescent ?? progSize * 0.25;
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(progText, badgeX + padH, badgeY + padV + progSize);
+    ctx.fillText(progText, badgeX + padH, badgeY + padV + (progSize - asc - desc) / 2 + asc);
 
     // Optional extras
     if (document.fonts) await document.fonts.load(`600 ${CREDIT.size}px 'Source Sans 3'`);
